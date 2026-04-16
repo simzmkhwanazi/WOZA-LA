@@ -205,7 +205,9 @@ export function ReviewStep({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 items-center">
+      {/* Filter bar — scrollable on mobile */}
+      <div className="-mx-4 sm:mx-0">
+        <div className="flex overflow-x-auto gap-2 px-4 sm:px-0 pb-1 scrollbar-none items-center">
         {([
           ['all',      `All (${counts.all})`],
           ['ready',    `Ready (${counts.ready})`],
@@ -217,7 +219,7 @@ export function ReviewStep({
           <button
             key={k}
             onClick={() => setFilter(k)}
-            className={`btn ${filter === k ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn flex-shrink-0 ${filter === k ? 'btn-primary' : 'btn-secondary'}`}
           >
             {label}
           </button>
@@ -235,23 +237,24 @@ export function ReviewStep({
             <button
               onClick={runAutoFix}
               disabled={fixing}
-              className="btn btn-secondary text-sm"
+              className="btn btn-secondary text-sm flex-shrink-0"
             >
-              {fixing ? 'Running AI fix…' : `Auto-fix ${counts.errors} error(s) with AI`}
+              {fixing ? 'Running AI fix…' : `Auto-fix ${counts.errors} error(s)`}
             </button>
           )}
+        </div>
         </div>
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-navy-50 text-left text-navy-700">
             <tr>
               {preview.map((f) => (
-                <th key={f.key} className="px-4 py-3 font-medium">{f.header}</th>
+                <th key={f.key} className="px-3 py-3 font-medium whitespace-nowrap">{f.header}</th>
               ))}
-              <th className="px-4 py-3 font-medium">Sources</th>
-              <th className="px-4 py-3 font-medium">Issues</th>
+              <th className="px-3 py-3 font-medium hidden sm:table-cell whitespace-nowrap">Sources</th>
+              <th className="px-3 py-3 font-medium whitespace-nowrap">Issues</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-navy-100">
@@ -265,12 +268,12 @@ export function ReviewStep({
                   onClick={() => setEditing(editing === c.id ? null : c.id)}
                 >
                   {preview.map((f) => (
-                    <td key={f.key} className="px-4 py-2">
+                    <td key={f.key} className="px-3 py-2 max-w-[160px] truncate">
                       {String((c.merged as Record<string, unknown>)[f.key] ?? '—')}
                     </td>
                   ))}
-                  <td className="px-4 py-2 text-xs text-navy-500">{c.sources.join(', ')}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-3 py-2 text-xs text-navy-500 hidden sm:table-cell">{c.sources.join(', ')}</td>
+                  <td className="px-3 py-2">
                     {errors > 0 && <span className="badge badge-error mr-1">{errors} err</span>}
                     {warns > 0 && <span className="badge badge-warn">{warns} warn</span>}
                     {errors === 0 && warns === 0 && !c.archived && <span className="badge badge-ok">OK</span>}

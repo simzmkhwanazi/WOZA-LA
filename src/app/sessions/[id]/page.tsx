@@ -73,16 +73,16 @@ export default function SessionPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <p className="text-sm text-navy-500">Firm</p>
-        <h2 className="text-2xl font-semibold text-navy-800">
+        <p className="text-xs text-navy-500 uppercase tracking-wide">Firm</p>
+        <h2 className="text-xl sm:text-2xl font-semibold text-navy-800 leading-tight">
           {session.firms?.name ?? 'Unknown firm'}
         </h2>
         {session.operator_name && (
-          <p className="text-sm text-navy-500 mt-1">Operator: {session.operator_name}</p>
+          <p className="text-sm text-navy-500 mt-0.5">Operator: {session.operator_name}</p>
         )}
-        <div className="mt-3 flex items-start gap-2 max-w-xl">
+        <div className="mt-3 flex items-start gap-2">
           <textarea
             rows={2}
             value={notes}
@@ -97,13 +97,15 @@ export default function SessionPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-navy-100">
-        {steps.map((s) => (
+      {/* Tabs — scrollable on mobile so they never wrap or overflow */}
+      <div className="-mx-4 sm:mx-0">
+        <div className="flex overflow-x-auto border-b border-navy-100 px-4 sm:px-0 gap-0 scrollbar-none">
+          {steps.map((s) => (
           <button
             key={s.key}
             onClick={() => setStep(s.key)}
             data-tour={s.tour}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+            className={`flex-shrink-0 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
               step === s.key
                 ? 'border-teal text-teal-700'
                 : 'border-transparent text-navy-500 hover:text-navy-800'
@@ -112,6 +114,7 @@ export default function SessionPage() {
             {s.label}
           </button>
         ))}
+        </div>
       </div>
 
       <div>

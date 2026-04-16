@@ -253,7 +253,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
     <div className="space-y-6">
 
       {/* ── Queue builder ───────────────────────────────────────────────────── */}
-      <div className="card p-6">
+      <div className="card p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-navy-800 mb-1">Upload source files</h3>
         <p className="text-sm text-navy-500 mb-5">
           Add one row per file. Tag each with its source, then click <strong>Upload All Files</strong>
@@ -267,75 +267,69 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
 
         <div className="space-y-3">
           {queue.map((item, idx) => (
-            <div key={item.id} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
+            <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:items-center">
 
-              {/* Row number */}
-              <span className="text-xs text-navy-400 w-5 text-right flex-shrink-0">{idx + 1}.</span>
+              {/* Top row on mobile: number + source + remove */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-navy-400 w-5 text-right flex-shrink-0">{idx + 1}.</span>
+                <input
+                  type="text"
+                  list="source-suggestions"
+                  value={item.source}
+                  onChange={(e) => setSource(item.id, e.target.value)}
+                  disabled={item.status === 'uploading'}
+                  placeholder="Source (e.g. SARS, Xero…)"
+                  className="input text-sm flex-1 sm:w-44 sm:flex-shrink-0"
+                />
+                {/* Remove — top-right on mobile */}
+                {item.status !== 'uploading' && queue.length > 1 && (
+                  <button
+                    onClick={() => removeRow(item.id)}
+                    className="text-navy-300 hover:text-rose-500 transition-colors flex-shrink-0 text-xl leading-none sm:hidden"
+                    title="Remove row"
+                  >×</button>
+                )}
+              </div>
 
-              {/* Source — free text with suggestions; normalised server-side */}
-              <input
-                type="text"
-                list="source-suggestions"
-                value={item.source}
-                onChange={(e) => setSource(item.id, e.target.value)}
-                disabled={item.status === 'uploading'}
-                placeholder="e.g. Company Details, SARS…"
-                className="input text-sm flex-shrink-0 w-44"
-              />
-
-              {/* File input */}
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv,.pdf"
-                onChange={(e) => setFile(item.id, e.target.files?.[0] ?? null)}
-                disabled={item.status === 'uploading'}
-                className="input text-sm flex-1 min-w-0"
-              />
-
-              {/* Status */}
-              <div className="w-24 flex-shrink-0 flex items-center">
-                <StatusBadge status={item.status} />
+              {/* Bottom row on mobile: file + status/progress/retry + remove (desktop) */}
+              <div className="flex items-center gap-2 pl-7 sm:pl-0 flex-1">
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.pdf"
+                  onChange={(e) => setFile(item.id, e.target.files?.[0] ?? null)}
+                  disabled={item.status === 'uploading'}
+                  className="input text-sm flex-1 min-w-0"
+                />
+                <div className="flex-shrink-0 flex items-center gap-1.5">
+                  <StatusBadge status={item.status} />
+                  {item.status === 'error' && (
+                    <button onClick={() => retryOne(item)} className="text-xs text-teal-700 underline">Retry</button>
+                  )}
+                </div>
+                {/* Remove — desktop only */}
+                {item.status !== 'uploading' && queue.length > 1 && (
+                  <button
+                    onClick={() => removeRow(item.id)}
+                    className="text-navy-300 hover:text-rose-500 transition-colors flex-shrink-0 text-xl leading-none hidden sm:block"
+                    title="Remove row"
+                  >×</button>
+                )}
               </div>
 
               {/* Progress bar (uploading only) */}
               {item.status === 'uploading' && (
-                <div className="w-full sm:w-24 h-1.5 bg-navy-100 rounded-full overflow-hidden flex-shrink-0">
-                  <div
-                    className="h-full bg-teal-500 transition-all duration-300"
-                    style={{ width: `${item.progress}%` }}
-                  />
+                <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden ml-7 sm:ml-0 sm:w-24 sm:flex-shrink-0">
+                  <div className="h-full bg-teal-500 transition-all duration-300" style={{ width: `${item.progress}%` }} />
                 </div>
               )}
 
-              {/* Retry button (error only) */}
-              {item.status === 'error' && (
-                <button
-                  onClick={() => retryOne(item)}
-                  className="text-xs text-teal-700 underline flex-shrink-0"
-                >
-                  Retry
-                </button>
-              )}
-
-              {/* Remove row */}
-              {item.status !== 'uploading' && queue.length > 1 && (
-                <button
-                  onClick={() => removeRow(item.id)}
-                  className="text-navy-300 hover:text-rose-500 transition-colors flex-shrink-0 text-lg leading-none"
-                  title="Remove row"
-                >
-                  ×
-                </button>
+              {/* Inline error */}
+              {item.error && (
+                <p className="text-xs text-rose-600 ml-7 sm:ml-0">{item.error}</p>
               )}
             </div>
           ))}
 
-          {/* Inline errors */}
-          {queue.filter((i) => i.error).map((item) => (
-            <p key={item.id + '-err'} className="text-xs text-rose-600 pl-7">
-              <strong>{item.file?.name ?? 'Row ' + (queue.indexOf(item) + 1)}:</strong> {item.error}
-            </p>
-          ))}
         </div>
 
         {/* Action row */}
@@ -374,14 +368,15 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
         {uploaded.length === 0 ? (
           <p className="px-6 py-8 text-sm text-navy-500 text-center">No uploads yet.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-navy-50 text-left text-navy-600">
               <tr>
                 <th className="px-4 py-2 font-medium">File</th>
                 <th className="px-4 py-2 font-medium">Source</th>
-                <th className="px-4 py-2 font-medium">Type</th>
-                <th className="px-4 py-2 font-medium">Rows</th>
-                <th className="px-4 py-2 font-medium">Columns</th>
+                <th className="px-4 py-2 font-medium hidden sm:table-cell">Type</th>
+                <th className="px-4 py-2 font-medium hidden sm:table-cell">Rows</th>
+                <th className="px-4 py-2 font-medium hidden md:table-cell">Columns</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-100">
@@ -389,7 +384,16 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
                 const isPdfFile = u.file_name.toLowerCase().endsWith('.pdf');
                 return (
                   <tr key={u.id}>
-                    <td className="px-4 py-2 font-medium text-navy-800">{u.file_name}</td>
+                    <td className="px-4 py-2 font-medium text-navy-800 max-w-[140px] sm:max-w-none truncate">
+                      {u.file_name}
+                      {/* row count subtitle on mobile */}
+                      {!isPdfFile && u.row_count != null && (
+                        <span className="block text-xs text-navy-400 sm:hidden">{u.row_count} rows · {u.detected_columns?.length ?? 0} cols</span>
+                      )}
+                      {isPdfFile && (
+                        <span className="block text-xs text-navy-400 sm:hidden">PDF ref</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2">
                       <span
                         className="badge badge-muted"
@@ -398,24 +402,23 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
                         {SOURCE_LABELS[u.source_type]}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-navy-400 text-xs uppercase tracking-wide">
+                    <td className="px-4 py-2 text-navy-400 text-xs uppercase tracking-wide hidden sm:table-cell">
                       {isPdfFile ? 'PDF' : u.file_name.split('.').pop()?.toUpperCase() ?? '—'}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 hidden sm:table-cell">
                       {isPdfFile
                         ? <span className="text-navy-400 text-xs">ref only</span>
                         : (u.row_count ?? '—')}
                     </td>
-                    <td className="px-4 py-2 text-navy-500">
-                      {isPdfFile
-                        ? '—'
-                        : `${u.detected_columns?.length ?? 0} detected`}
+                    <td className="px-4 py-2 text-navy-500 hidden md:table-cell">
+                      {isPdfFile ? '—' : `${u.detected_columns?.length ?? 0} detected`}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

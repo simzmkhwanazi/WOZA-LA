@@ -22,7 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* ── Header — safe-area aware, always visible ── */}
         <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-50"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5 group">
               <div className="leading-tight">
                 <div className="flex items-baseline gap-1.5">

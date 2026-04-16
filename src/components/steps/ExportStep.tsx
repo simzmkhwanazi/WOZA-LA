@@ -128,11 +128,10 @@ export function ExportStep({
 
   return (
     <div className="space-y-6">
-      <div className="card p-6">
+      <div className="card p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-navy-800 mb-1">Export to DataGrows</h3>
         <p className="text-sm text-navy-500 mb-4">
-          Download the populated DataGrows import template. Click any stat card to view those
-          records in the Review tab.
+          Download the populated DataGrows import template. Tap any stat card to view those records in the Review tab.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
