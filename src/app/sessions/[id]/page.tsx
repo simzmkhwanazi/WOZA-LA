@@ -8,9 +8,8 @@ import { MappingStep } from '@/components/steps/MappingStep';
 import { ReviewStep } from '@/components/steps/ReviewStep';
 import { ExportStep } from '@/components/steps/ExportStep';
 import { AuditStep } from '@/components/steps/AuditStep';
-import { StaffStep } from '@/components/steps/StaffStep';
 
-type Step = 'upload' | 'mapping' | 'review' | 'export' | 'audit' | 'staff';
+type Step = 'upload' | 'mapping' | 'review' | 'export' | 'audit';
 
 interface SessionDto {
   id: string;
@@ -62,11 +61,10 @@ export default function SessionPage() {
 
   const steps: { key: Step; label: string; tour: string }[] = [
     { key: 'upload',  label: '1. Upload',      tour: 'tab-upload' },
-    { key: 'staff',   label: '2. Staff',        tour: 'tab-staff' },
-    { key: 'mapping', label: '3. Map Columns',  tour: 'tab-mapping' },
-    { key: 'review',  label: '4. Review',       tour: 'tab-review' },
-    { key: 'audit',   label: '5. Audit Log',    tour: 'tab-audit' },
-    { key: 'export',  label: '6. Export',       tour: 'tab-export' },
+    { key: 'mapping', label: '2. Map Columns', tour: 'tab-mapping' },
+    { key: 'review',  label: '3. Review',      tour: 'tab-review' },
+    { key: 'audit',   label: '4. Audit Log',   tour: 'tab-audit' },
+    { key: 'export',  label: '5. Export',      tour: 'tab-export' },
   ];
 
   return (
@@ -117,7 +115,6 @@ export default function SessionPage() {
         {step === 'review' && <ReviewStep sessionId={sessionId} operatorName={session.operator_name} />}
         {step === 'export' && <ExportStep sessionId={sessionId} firmName={session.firms?.name ?? 'firm'} />}
         {step === 'audit' && <AuditStep sessionId={sessionId} />}
-        {step === 'staff' && <StaffStep firmId={session.firm_id} />}
       </div>
     </div>
   );

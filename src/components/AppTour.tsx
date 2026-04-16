@@ -113,14 +113,13 @@ const HOME_STEPS: DriveStep[] = [
         <p style="margin:0 0 10px">That covers the basics. Here's a quick summary of the full onboarding workflow:</p>
         <ol style="margin:0 0 10px;padding-left:18px;line-height:1.8">
           <li>Create a <strong>Session</strong> for the firm</li>
-          <li>Add their <strong>staff list</strong></li>
-          <li><strong>Upload</strong> all source files (Sage, Xero, SARS, CIPC, Company Details)</li>
+          <li><strong>Upload</strong> all source files (Sage, Xero, SARS, CIPC, Company Details, Employee List)</li>
           <li><strong>Map columns</strong> to the DataGrows schema</li>
           <li><strong>Review</strong> merged records and fix any issues</li>
           <li><strong>Export</strong> the master import Excel</li>
           <li>Run the <strong>Feature Engine</strong> to get AI recommendations</li>
         </ol>
-        <p style="margin:0">Open a session to see a tour of those 6 steps in detail.</p>
+        <p style="margin:0">Open a session to see a tour of those 5 steps in detail.</p>
       `,
       side: 'over',
       align: 'center',
@@ -135,7 +134,7 @@ const SESSION_STEPS: DriveStep[] = [
     popover: {
       title: '🗂️ Inside a Session',
       description: `
-        <p style="margin:0 0 10px">Each session has <strong>6 tabs</strong>. Work through them left to right — your changes save automatically at every step.</p>
+        <p style="margin:0 0 10px">Each session has <strong>5 tabs</strong>. Work through them left to right — your changes save automatically at every step.</p>
         <p style="margin:0">You don't need to finish in one sitting. The session remembers where you left off.</p>
       `,
       side: 'over',
@@ -161,21 +160,9 @@ const SESSION_STEPS: DriveStep[] = [
     },
   },
   {
-    element: '[data-tour="tab-staff"]',
-    popover: {
-      title: '2️⃣ Staff',
-      description: `
-        <p style="margin:0 0 8px">Add the accounting firm's staff members here — Partner, Manager, Accountant, etc.</p>
-        <p style="margin:0 0 8px">These names populate the staff assignment columns in the DataGrows import (columns AA–AH). DataGrows uses them to automatically route work to the right person for each client.</p>
-        <p style="margin:0">Tip: if you uploaded an Employee List file in Step 1, staff can be imported from there too.</p>
-      `,
-      side: 'bottom',
-    },
-  },
-  {
     element: '[data-tour="tab-mapping"]',
     popover: {
-      title: '3️⃣ Map Columns',
+      title: '2️⃣ Map Columns',
       description: `
         <p style="margin:0 0 8px">Woza La automatically matches the uploaded column headers to the 86-column DataGrows schema.</p>
         <p style="margin:0 0 8px">Review the auto-mappings and correct any that don't look right. Common mismatches happen with custom column names like "Client Ref" vs "Internal Client Code".</p>
@@ -187,7 +174,7 @@ const SESSION_STEPS: DriveStep[] = [
   {
     element: '[data-tour="tab-review"]',
     popover: {
-      title: '4️⃣ Review',
+      title: '3️⃣ Review',
       description: `
         <p style="margin:0 0 8px">The merged client records appear as a table. This is where you do the bulk of the cleanup work.</p>
         <ul style="margin:0 0 8px;padding-left:18px;line-height:1.8">
@@ -204,7 +191,7 @@ const SESSION_STEPS: DriveStep[] = [
   {
     element: '[data-tour="tab-audit"]',
     popover: {
-      title: '5️⃣ Audit Log',
+      title: '4️⃣ Audit Log',
       description: `
         <p style="margin:0 0 8px">Every edit made in the Review step is logged here with:</p>
         <ul style="margin:0 0 8px;padding-left:18px;line-height:1.8">
@@ -220,7 +207,7 @@ const SESSION_STEPS: DriveStep[] = [
   {
     element: '[data-tour="tab-export"]',
     popover: {
-      title: '6️⃣ Export',
+      title: '5️⃣ Export',
       description: `
         <p style="margin:0 0 8px">When the data is clean, export two files:</p>
         <ul style="margin:0 0 8px;padding-left:18px;line-height:1.8">
