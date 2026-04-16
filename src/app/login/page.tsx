@@ -35,22 +35,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center">
-          <div className="leading-tight">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-navy-600 tracking-tight">Woza La</span>
-              <span className="text-[11px] text-gray-400 font-normal hidden sm:inline">by DataGrows</span>
-            </div>
-            <p className="text-[10px] font-semibold text-teal tracking-widest uppercase leading-none">
-              Get In. Stay In.
-            </p>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-[calc(100vh-56px)] bg-gray-50 flex flex-col">
       {/* Teal strip */}
       <div className="bg-teal">
         <div className="max-w-7xl mx-auto px-6 py-5">
