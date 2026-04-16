@@ -94,6 +94,14 @@
       "set": {
         "workmans": true
       }
+    },
+    {
+      "id": "year-end-february-default",
+      "description": "Default year_end to February for entity types that require it. Required for CIPC and tax tasks to schedule correctly in DataGrows.",
+      "when": { "entity_type": ["PTY LTD", "CLOSE CORPORATION", "NON-PROFIT", "CO-OPERATIVE", "PARTNERSHIP", "ASSOCIATION", "BODY CORPORATE", "PLC", "PUBLIC COMPANY", "EXTERNAL COMPANY (CFCs)"] },
+      "set": {
+        "year_end": "February"
+      }
     }
   ]
 }

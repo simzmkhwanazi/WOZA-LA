@@ -327,6 +327,10 @@ export type ClientRecord = Partial<Record<DataGrowsKey, unknown>> & {
   _archived?: boolean;
   /** Archived reason for the report */
   _archive_reason?: string;
+  /** Enum fields whose merged value is not in the DataGrows allowed list */
+  _invalid_enums?: Record<string, string>;
+  /** Whether AI auto-fix has been applied to this record */
+  auto_fixed?: boolean;
 };
 
 export const TOTAL_COLUMNS = DATAGROWS_FIELDS.length; // should be 86

@@ -13,7 +13,7 @@
  *  - Sources that contributed are listed in _sources.
  */
 
-import { DATAGROWS_FIELDS, type ClientRecord } from '../schema/datagrows';
+import { DATAGROWS_FIELDS, type ClientRecord, type FieldDef } from '../schema/datagrows';
 import { priorityFor, type SourceType } from '../schema/sources';
 import type { Cluster } from '../matcher';
 
@@ -79,6 +79,22 @@ export function mergeCluster(cluster: Cluster): ClientRecord {
   merged._sources = Array.from(sourcesSet);
   if (Object.keys(conflicts).length > 0) merged._conflicts = conflicts;
   merged._cluster_id = cluster.id;
+
+  // Enum sanitizer — flag any enum field whose merged value is not in the allowed list.
+  // Does NOT change the value; validator will catch it. Flag gives Review UI early signal.
+  const invalidEnumFlags: Record<string, string> = {};
+  for (const field of DATAGROWS_FIELDS as readonly FieldDef[]) {
+    if (field.type !== 'enum' || !field.enum) continue;
+    const v = (merged as Record<string, unknown>)[field.key];
+    if (v === undefined || v === null || v === '') continue;
+    if (!field.enum.includes(String(v))) {
+      invalidEnumFlags[field.key] = String(v);
+    }
+  }
+  if (Object.keys(invalidEnumFlags).length > 0) {
+    merged._invalid_enums = invalidEnumFlags;
+  }
+
   return merged;
 }
 

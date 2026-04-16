@@ -22,7 +22,7 @@ import {
   type ClientRecord,
 } from '../schema/datagrows';
 import {
-  registrationKey,
+  registrationMatchKey,
   idNumberKey,
   cleanString,
   upperNormalize,
@@ -63,7 +63,8 @@ function pickPrimaryKey(rec: ClientRecord): { type: Cluster['primaryKeyType']; v
   }
 
   // Default: try registration number first (works for most entity types)
-  const reg = registrationKey(rec.registration_nr);
+  // Use canonical match key so "2004876646" and "2004/876646/07" resolve to the same cluster
+  const reg = registrationMatchKey(rec.registration_nr);
   if (reg) return { type: 'reg', value: reg };
 
   // Then fall back to ID number (for unclassified)
@@ -87,9 +88,33 @@ function nameSimilarity(a: string, b: string): number {
   const nb = upperNormalize(b);
   if (!na || !nb) return 0;
   if (na === nb) return 1;
+
+  // Standard Levenshtein similarity
   const d = levenshtein(na, nb);
   const maxLen = Math.max(na.length, nb.length);
-  return 1 - d / maxLen;
+  const levSim = 1 - d / maxLen;
+
+  // Token sort ratio: split on word boundaries, sort tokens, rejoin, compare.
+  // Handles "ABC Trading Pty Ltd" vs "ABC TRADING PTYLTD" → much higher score.
+  const tokensA = na.split(/[^A-Z0-9]+/).filter(Boolean).sort().join('');
+  const tokensB = nb.split(/[^A-Z0-9]+/).filter(Boolean).sort().join('');
+  const td = levenshtein(tokensA, tokensB);
+  const tokenMaxLen = Math.max(tokensA.length, tokensB.length);
+  const tokenSim = tokenMaxLen > 0 ? 1 - td / tokenMaxLen : 0;
+
+  // Use the higher of the two scores
+  return Math.max(levSim, tokenSim);
+}
+
+/** Returns true if the record has at least one valid primary identifier. */
+export function hasPrimaryIdentifier(rec: ClientRecord): boolean {
+  const reg = registrationMatchKey(rec.registration_nr);
+  if (reg && reg.length >= 10) return true;
+  const id = idNumberKey(rec.id_number);
+  if (id && id.length === 13) return true;
+  const td = cleanString(rec.trust_deed_number);
+  if (td) return true;
+  return false;
 }
 
 const NAME_MATCH_THRESHOLD = 0.85;
@@ -177,8 +202,8 @@ export function matchRecords(records: MappedRecord[]): MatchResult {
       sources: [o.source],
       archived: true,
       archiveReason:
-        'No registration number, ID number, or trust deed number found. ' +
-        'Unable to cross-reference in other sources by name.',
+        'No primary identifier found (registration number, SA ID number, or trust deed number). ' +
+        'Cannot file or report for this client. Return to firm for clarification.',
     });
   }
 

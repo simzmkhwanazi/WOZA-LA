@@ -88,22 +88,29 @@ export async function GET(
       });
     }
 
-    const { buffer, rowsWritten, skippedArchived } = await exportToDataGrowsTemplate({
+    const result = await exportToDataGrowsTemplate({
       records,
       stripInstructions: true,
     });
 
+    if (result.blocked) {
+      return NextResponse.json(
+        { error: result.message, blockedCount: result.blockedCount, errorCount: result.errorCount },
+        { status: 422 },
+      );
+    }
+
     // Flag the session as exported (idempotent — we always allow re-export)
     await supabase.from('sessions').update({ status: 'exported' }).eq('id', sessionId);
 
-    return new NextResponse(new Uint8Array(buffer), {
+    return new NextResponse(new Uint8Array(result.buffer), {
       status: 200,
       headers: {
         'Content-Type':
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${firmName}_datagrows_import.xlsx"`,
-        'X-Rows-Written': String(rowsWritten),
-        'X-Skipped-Archived': String(skippedArchived),
+        'X-Rows-Written': String(result.rowsWritten),
+        'X-Skipped-Archived': String(result.skippedArchived),
       },
     });
   } catch (err) {

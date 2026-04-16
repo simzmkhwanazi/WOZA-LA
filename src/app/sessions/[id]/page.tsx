@@ -10,6 +10,7 @@ import { ExportStep } from '@/components/steps/ExportStep';
 import { AuditStep } from '@/components/steps/AuditStep';
 
 type Step = 'upload' | 'mapping' | 'review' | 'export' | 'audit';
+type ReviewFilter = 'all' | 'errors' | 'warnings' | 'archived' | 'dormant';
 
 interface SessionDto {
   id: string;
@@ -26,6 +27,7 @@ export default function SessionPage() {
   const supabase = createClient();
   const [session, setSession] = useState<SessionDto | null>(null);
   const [step, setStep] = useState<Step>('upload');
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('errors');
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
@@ -45,9 +47,7 @@ export default function SessionPage() {
     setLoading(false);
   }, [sessionId, supabase]);
 
-  useEffect(() => {
-    loadSession();
-  }, [loadSession]);
+  useEffect(() => { loadSession(); }, [loadSession]);
 
   async function saveNotes() {
     if (!session) return;
@@ -56,15 +56,20 @@ export default function SessionPage() {
     setNotesSaving(false);
   }
 
+  function navigateToReview(filter: ReviewFilter) {
+    setReviewFilter(filter);
+    setStep('review');
+  }
+
   if (loading) return <p className="text-navy-500">Loading session…</p>;
   if (!session) return <p className="text-rose-600">Session not found.</p>;
 
   const steps: { key: Step; label: string; tour: string }[] = [
-    { key: 'upload',  label: '1. Upload',      tour: 'tab-upload' },
-    { key: 'mapping', label: '2. Map Columns', tour: 'tab-mapping' },
-    { key: 'review',  label: '3. Review',      tour: 'tab-review' },
-    { key: 'audit',   label: '4. Audit Log',   tour: 'tab-audit' },
-    { key: 'export',  label: '5. Export',      tour: 'tab-export' },
+    { key: 'upload',  label: '1. Upload',     tour: 'tab-upload' },
+    { key: 'mapping', label: '2. Process',    tour: 'tab-mapping' },
+    { key: 'review',  label: '3. Review',     tour: 'tab-review' },
+    { key: 'export',  label: '4. Export',     tour: 'tab-export' },
+    { key: 'audit',   label: '5. Audit Log',  tour: 'tab-audit' },
   ];
 
   return (
@@ -111,9 +116,26 @@ export default function SessionPage() {
 
       <div>
         {step === 'upload' && <UploadStep sessionId={sessionId} />}
-        {step === 'mapping' && <MappingStep sessionId={sessionId} />}
-        {step === 'review' && <ReviewStep sessionId={sessionId} operatorName={session.operator_name} />}
-        {step === 'export' && <ExportStep sessionId={sessionId} firmName={session.firms?.name ?? 'firm'} />}
+        {step === 'mapping' && (
+          <MappingStep
+            sessionId={sessionId}
+            onComplete={() => setStep('review')}
+          />
+        )}
+        {step === 'review' && (
+          <ReviewStep
+            sessionId={sessionId}
+            operatorName={session.operator_name}
+            initialFilter={reviewFilter}
+          />
+        )}
+        {step === 'export' && (
+          <ExportStep
+            sessionId={sessionId}
+            firmName={session.firms?.name ?? 'firm'}
+            onNavigateToReview={navigateToReview}
+          />
+        )}
         {step === 'audit' && <AuditStep sessionId={sessionId} />}
       </div>
     </div>

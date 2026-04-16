@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DATAGROWS_FIELDS, FIELD_BY_COL, REQUIRED_FIELDS, type FieldDef, type ClientRecord } from '@/lib/schema/datagrows';
 import { validateRecord } from '@/lib/validator';
+import { humanizeIssue } from '@/lib/validator/humanize';
 
 // ── Field groups — every column accounted for ────────────────────────────────
 const FIELD_GROUPS: { label: string; cols: string[] }[] = [
@@ -91,15 +92,19 @@ type Filter = 'all' | 'errors' | 'warnings' | 'archived' | 'dormant';
 export function ReviewStep({
   sessionId,
   operatorName,
+  initialFilter,
 }: {
   sessionId: string;
   operatorName?: string | null;
+  initialFilter?: Filter;
 }) {
   const supabase = createClient();
   const [clusters, setClusters] = useState<ClusterRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? 'errors');
   const [editing, setEditing] = useState<string | null>(null);
+  const [fixing, setFixing] = useState(false);
+  const [fixResult, setFixResult] = useState<{ fixed: number } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -143,6 +148,27 @@ export function ReviewStep({
     dormant: decorated.filter((c) => c.merged.status === 'Dormant').length,
   }), [decorated]);
 
+  async function runAutoFix() {
+    setFixing(true);
+    setFixResult(null);
+    try {
+      const res = await fetch('/api/auto-fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await res.json() as { fixed?: number; error?: string };
+      if (data.error) throw new Error(data.error);
+      setFixResult({ fixed: data.fixed ?? 0 });
+      if ((data.fixed ?? 0) > 0) await load();
+    } catch (err) {
+      setFixResult({ fixed: -1 });
+      console.error('[auto-fix]', err);
+    } finally {
+      setFixing(false);
+    }
+  }
+
   async function updateField(clusterId: string, fieldKey: string, value: unknown) {
     const target = clusters.find((c) => c.id === clusterId);
     if (!target) return;
@@ -176,7 +202,7 @@ export function ReviewStep({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         {([
           ['all', `All (${counts.all})`],
           ['errors', `Errors (${counts.errors})`],
@@ -192,6 +218,25 @@ export function ReviewStep({
             {label}
           </button>
         ))}
+        <div className="ml-auto flex items-center gap-2">
+          {fixResult && fixResult.fixed >= 0 && (
+            <span className="text-sm text-green-700 bg-green-50 px-2 py-1 rounded">
+              {fixResult.fixed > 0 ? `AI fixed ${fixResult.fixed} record(s)` : 'No automatic fixes found'}
+            </span>
+          )}
+          {fixResult && fixResult.fixed === -1 && (
+            <span className="text-sm text-red-600">Fix failed — try again</span>
+          )}
+          {counts.errors > 0 && (
+            <button
+              onClick={runAutoFix}
+              disabled={fixing}
+              className="btn btn-secondary text-sm"
+            >
+              {fixing ? 'Running AI fix…' : `Auto-fix ${counts.errors} error(s) with AI`}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="card overflow-x-auto">
@@ -254,13 +299,25 @@ export function ReviewStep({
             {v.issues.length > 0 && (
               <div className="mb-4">
                 <h4 className="text-sm font-semibold text-navy-700 mb-2">Issues</h4>
-                <ul className="text-sm space-y-1">
+                <ul className="text-sm space-y-1.5">
                   {v.issues.map((i, idx) => (
-                    <li key={idx} className="flex gap-2">
-                      <span className={`badge ${i.severity === 'error' ? 'badge-error' : 'badge-warn'}`}>
+                    <li key={idx} className="flex gap-2 items-start">
+                      <span className={`badge mt-0.5 shrink-0 ${i.severity === 'error' ? 'badge-error' : 'badge-warn'}`}>
                         {i.severity}
                       </span>
-                      <span>{i.message}</span>
+                      <span>{humanizeIssue(i)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {target.merged._invalid_enums && Object.keys(target.merged._invalid_enums as object).length > 0 && (
+              <div className="mb-4 p-3 bg-purple-50 text-purple-900 text-sm rounded">
+                <strong>AI-flagged values (may need correction):</strong>
+                <ul className="mt-1 space-y-0.5">
+                  {Object.entries(target.merged._invalid_enums as Record<string, string>).map(([field, val]) => (
+                    <li key={field}>
+                      <span className="font-mono">{field}</span>: &quot;{val}&quot; is not in the DataGrows allowed list
                     </li>
                   ))}
                 </ul>

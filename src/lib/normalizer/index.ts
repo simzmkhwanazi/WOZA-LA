@@ -11,6 +11,9 @@ import {
   ENTITY_TYPES, STATUS_VALUES, MONTHS,
   DATAGROWS_FIELDS, FIELD_BY_KEY, type ClientRecord, type FieldDef,
 } from '../schema/datagrows';
+import { canonicaliseRegistrationNr, registrationMatchKey } from './registration-canonical';
+import { inferEntityType } from './entity-inference';
+export { correctFieldLeakage } from './field-leakage';
 
 // -----------------------------------------------------------------------------
 // String cleaning
@@ -224,7 +227,7 @@ function normalizeByField(field: FieldDef, value: unknown): unknown {
     case 'status':
       return normalizeStatus(value);
     case 'registration_nr':
-      return normalizeRegistrationNumber(value);
+      return canonicaliseRegistrationNr(value);
     case 'year_end':
     case 'accounting_start_month':
     case 'audit_due_month':
@@ -260,6 +263,7 @@ function normalizeByField(field: FieldDef, value: unknown): unknown {
 
 /**
  * Normalize a whole record. Strips empty strings, standardises all values.
+ * Call correctFieldLeakage() on the raw record BEFORE calling this function.
  */
 export function normalizeRecord(record: Record<string, unknown>): ClientRecord {
   const out: ClientRecord = {};
@@ -268,7 +272,17 @@ export function normalizeRecord(record: Record<string, unknown>): ClientRecord {
     const normalized = normalizeByField(field, raw);
     if (normalized !== undefined) (out as Record<string, unknown>)[field.key] = normalized;
   }
+
+  // Infer entity_type if still blank after per-field normalisation
+  if (!out.entity_type) {
+    const inferred = inferEntityType(out);
+    if (inferred) (out as Record<string, unknown>).entity_type = inferred;
+  }
+
   return out;
 }
+
+// Re-export canonical registration key for matcher
+export { registrationMatchKey };
 
 export { FIELD_BY_KEY };

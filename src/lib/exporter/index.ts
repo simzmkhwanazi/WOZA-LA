@@ -12,6 +12,7 @@
 import ExcelJS from 'exceljs';
 import path from 'node:path';
 import { DATAGROWS_FIELDS, type ClientRecord } from '../schema/datagrows';
+import { validateBatch } from '../validator';
 
 const TEMPLATE_PATH = path.join(
   process.cwd(),
@@ -39,14 +40,41 @@ export interface ExportOptions {
   records: ClientRecord[];
   /** Whether to also delete the row-2 instructions row (DataGrows says to) */
   stripInstructions?: boolean;
+  /**
+   * If true, skip the pre-flight validation gate and export anyway.
+   * Use only for "force download" flows where the user has acknowledged errors.
+   */
+  skipPreflight?: boolean;
 }
 
-export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<{
-  rowsWritten: number;
-  skippedArchived: number;
-  outputPath?: string;
-  buffer: Buffer;
-}> {
+export interface PreflightFailure {
+  blocked: true;
+  blockedCount: number;
+  errorCount: number;
+  message: string;
+}
+
+export type ExportResult =
+  | { blocked: false; rowsWritten: number; skippedArchived: number; outputPath?: string; buffer: Buffer }
+  | PreflightFailure;
+
+export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<ExportResult> {
+  // Pre-flight: block if any non-archived record has hard errors
+  if (!opts.skipPreflight) {
+    const preflight = validateBatch(opts.records);
+    if (preflight.totals.blocked > 0) {
+      return {
+        blocked: true,
+        blockedCount: preflight.totals.blocked,
+        errorCount: preflight.totals.errors,
+        message:
+          `${preflight.totals.blocked} client record(s) have blocking errors ` +
+          `(${preflight.totals.errors} total error(s)). ` +
+          `Resolve all errors in the Review tab before exporting.`,
+      };
+    }
+  }
+
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(TEMPLATE_PATH);
 
@@ -80,6 +108,7 @@ export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<{
   }
 
   return {
+    blocked: false,
     rowsWritten: records.length,
     skippedArchived,
     outputPath: opts.outputPath,
