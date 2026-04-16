@@ -79,6 +79,23 @@ const HOME_STEPS: DriveStep[] = [
     },
   },
   {
+    element: '[data-tour="sessions-table"]',
+    popover: {
+      title: '💡 You can run multiple sessions at once',
+      description: `
+        <p style="margin:0 0 8px">There's no limit. You might have three firms on the go at the same time:</p>
+        <ul style="margin:0 0 8px;padding-left:18px;line-height:1.8">
+          <li><strong>Rich Accounts</strong> — Sage uploaded, waiting on SARS data</li>
+          <li><strong>ABC Auditors</strong> — paused at Review, firm still sending files</li>
+          <li><strong>XYZ Group</strong> — fully exported and done</li>
+        </ul>
+        <p style="margin:0 0 8px"><strong>Partial data is fine.</strong> If a firm hasn't sent everything yet, start the session with what you have and export a draft masterfile. When the missing files arrive, come back, upload them, re-run the mapping — and the records are rebuilt with the richer data.</p>
+        <p style="margin:0">You can export as many times as needed. There's no lock on the Export step.</p>
+      `,
+      side: 'top',
+    },
+  },
+  {
     element: '[data-tour="nav-settings"]',
     popover: {
       title: '⚙️ Settings',
@@ -210,6 +227,7 @@ const SESSION_STEPS: DriveStep[] = [
           <li><strong>DataGrows Master Import</strong> — the final .xlsx ready to upload into DataGrows. Contains all 86 columns in the exact order DataGrows expects.</li>
           <li><strong>Archive Report</strong> — a separate file listing all clients that were excluded and why. Hand this back to the firm for follow-up.</li>
         </ul>
+        <p style="margin:0 0 8px">💡 <strong>Don't have all the files yet?</strong> Export a draft now and come back later. When the missing data arrives, upload it, re-run mapping, and export again — the session stays open and you can override the masterfile as many times as needed.</p>
         <p style="margin:0">After exporting, head to the <strong>Feature Engine</strong> to generate feature recommendations for this firm.</p>
       `,
       side: 'bottom',
