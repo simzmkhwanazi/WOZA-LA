@@ -173,10 +173,11 @@ export function ExportStep({
         </div>
 
         {summary.withErrors > 0 && (
-          <div className="mb-4 p-3 bg-rose-50 text-rose-900 text-sm rounded flex items-start justify-between gap-3">
+          <div className="mb-4 p-3 bg-amber-50 text-amber-900 text-sm rounded flex items-start justify-between gap-3">
             <span>
-              <strong>{summary.withErrors}</strong> record(s) have blocking errors.
-              The export will be blocked until they are fixed.
+              <strong>{summary.withErrors}</strong> record(s) have errors and will be skipped in the export.
+              The remaining <strong>{summary.readyToExport}</strong> clean records will still be exported.
+              Fix errors in the Review tab to include them.
             </span>
             <button
               onClick={runAutoFix}
@@ -198,7 +199,7 @@ export function ExportStep({
           <button
             className="btn btn-primary"
             onClick={() => download('datagrows')}
-            disabled={downloading !== null || summary.readyToExport === 0}
+            disabled={downloading !== null || (summary.readyToExport === 0 && summary.withErrors === 0)}
           >
             {downloading === 'datagrows'
               ? 'Generating…'

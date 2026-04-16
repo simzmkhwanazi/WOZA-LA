@@ -93,13 +93,6 @@ export async function GET(
       stripInstructions: true,
     });
 
-    if (result.blocked) {
-      return NextResponse.json(
-        { error: result.message, blockedCount: result.blockedCount, errorCount: result.errorCount },
-        { status: 422 },
-      );
-    }
-
     // Flag the session as exported (idempotent — we always allow re-export)
     await supabase.from('sessions').update({ status: 'exported' }).eq('id', sessionId);
 
@@ -111,6 +104,7 @@ export async function GET(
         'Content-Disposition': `attachment; filename="${firmName}_datagrows_import.xlsx"`,
         'X-Rows-Written': String(result.rowsWritten),
         'X-Skipped-Archived': String(result.skippedArchived),
+        'X-Skipped-Errors': String(result.skippedErrors),
       },
     });
   } catch (err) {

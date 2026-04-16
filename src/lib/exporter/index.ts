@@ -12,7 +12,7 @@
 import ExcelJS from 'exceljs';
 import path from 'node:path';
 import { DATAGROWS_FIELDS, type ClientRecord } from '../schema/datagrows';
-import { validateBatch } from '../validator';
+import { validateRecord } from '../validator';
 
 const TEMPLATE_PATH = path.join(
   process.cwd(),
@@ -36,53 +36,42 @@ function cellValueFor(value: unknown): string | number | boolean | null {
 export interface ExportOptions {
   /** Where to write the output file. If omitted, returns a buffer only. */
   outputPath?: string;
-  /** Records to include (archived records are skipped automatically) */
+  /** Records to include. Archived and errored records are skipped automatically. */
   records: ClientRecord[];
-  /** Whether to also delete the row-2 instructions row (DataGrows says to) */
+  /** Whether to also clear the row-2 instructions row (DataGrows says to). */
   stripInstructions?: boolean;
-  /**
-   * If true, skip the pre-flight validation gate and export anyway.
-   * Use only for "force download" flows where the user has acknowledged errors.
-   */
-  skipPreflight?: boolean;
 }
 
-export interface PreflightFailure {
-  blocked: true;
-  blockedCount: number;
-  errorCount: number;
-  message: string;
+export interface ExportResult {
+  rowsWritten: number;
+  skippedArchived: number;
+  skippedErrors: number;
+  outputPath?: string;
+  buffer: Buffer;
 }
-
-export type ExportResult =
-  | { blocked: false; rowsWritten: number; skippedArchived: number; outputPath?: string; buffer: Buffer }
-  | PreflightFailure;
 
 export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<ExportResult> {
-  // Pre-flight: block if any non-archived record has hard errors
-  if (!opts.skipPreflight) {
-    const preflight = validateBatch(opts.records);
-    if (preflight.totals.blocked > 0) {
-      return {
-        blocked: true,
-        blockedCount: preflight.totals.blocked,
-        errorCount: preflight.totals.errors,
-        message:
-          `${preflight.totals.blocked} client record(s) have blocking errors ` +
-          `(${preflight.totals.errors} total error(s)). ` +
-          `Resolve all errors in the Review tab before exporting.`,
-      };
-    }
-  }
-
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(TEMPLATE_PATH);
 
   const sheet = wb.getWorksheet('CLIENT IMPORT');
   if (!sheet) throw new Error('CLIENT IMPORT sheet not found in template');
 
-  const records = opts.records.filter((r) => !r._archived);
-  const skippedArchived = opts.records.length - records.length;
+  // Skip archived records
+  const nonArchived = opts.records.filter((r) => !r._archived);
+  const skippedArchived = opts.records.length - nonArchived.length;
+
+  // Skip records with blocking validation errors — write only clean ones
+  const records: ClientRecord[] = [];
+  let skippedErrors = 0;
+  for (const r of nonArchived) {
+    const v = validateRecord(r);
+    if (v.ok) {
+      records.push(r);
+    } else {
+      skippedErrors++;
+    }
+  }
 
   records.forEach((record, idx) => {
     const rowNum = DATA_START_ROW + idx;
@@ -108,9 +97,9 @@ export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<Ex
   }
 
   return {
-    blocked: false,
     rowsWritten: records.length,
     skippedArchived,
+    skippedErrors,
     outputPath: opts.outputPath,
     buffer,
   };
