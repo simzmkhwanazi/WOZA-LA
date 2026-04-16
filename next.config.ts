@@ -1,8 +1,12 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // ExcelJS uses dynamic require paths; keep them server-only.
   serverExternalPackages: ['exceljs', 'xlsx'],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '52mb',
+    },
+  },
 };
 
 export default nextConfig;
