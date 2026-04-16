@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getStaff, addStaff, deleteStaff, type StaffMember } from '@/lib/actions/db';
+import { createClient } from '@/lib/supabase/client';
 
 // The eight staff-assignment columns in the DataGrows template (AA–AH).
 const STAFF_ROLES = [
@@ -15,7 +15,15 @@ const STAFF_ROLES = [
   'Tax Role',
 ] as const;
 
+interface StaffMember {
+  id: string;
+  name: string;
+  roles: string[];
+  created_at: string;
+}
+
 export function StaffStep({ firmId }: { firmId: string }) {
+  const supabase = createClient();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,9 +35,14 @@ export function StaffStep({ firmId }: { firmId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setStaff(await getStaff(firmId));
+    const { data } = await supabase
+      .from('firm_staff')
+      .select('id, name, roles, created_at')
+      .eq('firm_id', firmId)
+      .order('name');
+    setStaff((data as StaffMember[]) ?? []);
     setLoading(false);
-  }, [firmId]);
+  }, [firmId, supabase]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -44,9 +57,13 @@ export function StaffStep({ firmId }: { firmId: string }) {
     if (!newName.trim()) return;
     setSaving(true);
     setError(null);
-    const { error: err } = await addStaff({ firmId, name: newName.trim(), roles: newRoles });
+    const { error: err } = await supabase.from('firm_staff').insert({
+      firm_id: firmId,
+      name: newName.trim(),
+      roles: newRoles,
+    });
     if (err) {
-      setError(err);
+      setError(err.message);
     } else {
       setNewName('');
       setNewRoles([]);
@@ -56,7 +73,7 @@ export function StaffStep({ firmId }: { firmId: string }) {
   }
 
   async function handleDelete(id: string) {
-    await deleteStaff(id);
+    await supabase.from('firm_staff').delete().eq('id', id);
     setStaff((prev) => prev.filter((s) => s.id !== id));
   }
 

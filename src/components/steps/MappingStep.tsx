@@ -1,31 +1,36 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { DATAGROWS_FIELDS } from '@/lib/schema/datagrows';
 import { initialMapping } from '@/lib/parsers/mapping-heuristics';
 import { normalizeRecord } from '@/lib/normalizer';
 import { applyRules } from '@/lib/rules/engine';
 import { matchRecords, type MappedRecord } from '@/lib/matcher';
 import { mergeAllClusters } from '@/lib/merger';
-import {
-  getUploadsWithMappings,
-  saveColumnMapping,
-  getRawRecords,
-  deleteClusters,
-  insertClusters,
-  updateSessionStatus,
-  type UploadWithMapping,
-  type ClusterInsert,
-} from '@/lib/actions/db';
+import type { SourceType } from '@/lib/schema/sources';
+
+interface UploadRow {
+  id: string;
+  file_name: string;
+  source_type: SourceType;
+  detected_columns: string[] | null;
+  column_mapping: Record<string, string> | null;
+}
 
 export function MappingStep({ sessionId }: { sessionId: string }) {
-  const [uploads, setUploads] = useState<UploadWithMapping[]>([]);
+  const supabase = createClient();
+  const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [mappings, setMappings] = useState<Record<string, Record<string, string>>>({});
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<string[]>([]);
 
   const loadUploads = useCallback(async () => {
-    const list = await getUploadsWithMappings(sessionId);
+    const { data } = await supabase
+      .from('uploads')
+      .select('id, file_name, source_type, detected_columns, column_mapping')
+      .eq('session_id', sessionId);
+    const list = (data as UploadRow[]) ?? [];
     setUploads(list);
 
     const initial: Record<string, Record<string, string>> = {};
@@ -40,7 +45,7 @@ export function MappingStep({ sessionId }: { sessionId: string }) {
       }
     }
     setMappings(initial);
-  }, [sessionId]);
+  }, [sessionId, supabase]);
 
   useEffect(() => { loadUploads(); }, [loadUploads]);
 
@@ -59,13 +64,20 @@ export function MappingStep({ sessionId }: { sessionId: string }) {
     try {
       append('Saving column mappings…');
       for (const u of uploads) {
-        await saveColumnMapping(u.id, mappings[u.id] ?? {});
+        await supabase
+          .from('uploads')
+          .update({ column_mapping: mappings[u.id] ?? {} })
+          .eq('id', u.id);
       }
 
       append('Fetching raw records…');
       const allMapped: MappedRecord[] = [];
       for (const u of uploads) {
-        const raws = await getRawRecords(u.id);
+        const { data: raws } = await supabase
+          .from('raw_records')
+          .select('id, data')
+          .eq('upload_id', u.id);
+        if (!raws) continue;
         const mapping = mappings[u.id] ?? {};
         append(`  ${u.file_name}: ${raws.length} raw rows`);
 
@@ -73,7 +85,7 @@ export function MappingStep({ sessionId }: { sessionId: string }) {
           const canonical: Record<string, unknown> = {};
           for (const [header, fieldKey] of Object.entries(mapping)) {
             if (!fieldKey) continue;
-            canonical[fieldKey] = raw.data[header];
+            canonical[fieldKey] = (raw.data as Record<string, unknown>)[header];
           }
           const normalized = normalizeRecord(canonical);
           const ruled = applyRules(normalized);
@@ -94,25 +106,26 @@ export function MappingStep({ sessionId }: { sessionId: string }) {
       const merged = mergeAllClusters(clusters);
       append(`  ${merged.length} final client records`);
 
-      append('Persisting clusters…');
-      await deleteClusters(sessionId);
-
-      const toInsert: ClusterInsert[] = merged.map((rec) => ({
+      append('Persisting clusters to Supabase…');
+      // Clear existing clusters for this session (idempotent re-run)
+      await supabase.from('clusters').delete().eq('session_id', sessionId);
+      const toInsert = merged.map((rec) => ({
         session_id: sessionId,
         primary_key_type: clusters.find((c) => c.id === rec._cluster_id)?.primaryKeyType ?? 'none',
         primary_key_value: clusters.find((c) => c.id === rec._cluster_id)?.primaryKeyValue ?? '',
         merged: rec,
-        flags: ((rec._flags as unknown) as unknown[]) ?? [],
-        conflicts: (rec._conflicts as Record<string, unknown>) ?? {},
-        sources: (rec._sources as string[]) ?? [],
+        flags: rec._flags ?? [],
+        conflicts: rec._conflicts ?? {},
+        sources: rec._sources ?? [],
         archived: !!rec._archived,
-        archive_reason: (rec._archive_reason as string | null | undefined) ?? null,
+        archive_reason: rec._archive_reason ?? null,
       }));
+      for (let i = 0; i < toInsert.length; i += 200) {
+        const { error: insErr } = await supabase.from('clusters').insert(toInsert.slice(i, i + 200));
+        if (insErr) throw insErr;
+      }
 
-      const { error: insErr } = await insertClusters(toInsert);
-      if (insErr) throw new Error(insErr);
-
-      await updateSessionStatus(sessionId, 'reviewing');
+      await supabase.from('sessions').update({ status: 'reviewing' }).eq('id', sessionId);
       append('Done. Switch to the Review tab.');
     } catch (err) {
       append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);

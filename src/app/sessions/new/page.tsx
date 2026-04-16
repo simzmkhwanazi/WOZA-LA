@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createFirmAndSession } from '@/lib/actions/db';
+import { createClient } from '@/lib/supabase/client';
 
 export default function NewSessionPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [firmName, setFirmName] = useState('');
   const [operator, setOperator] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -16,18 +17,35 @@ export default function NewSessionPage() {
     setSubmitting(true);
     setError(null);
 
-    const { sessionId, error: err } = await createFirmAndSession(
-      firmName.trim(),
-      operator.trim() || null,
-    );
+    const { data: firm, error: firmErr } = await supabase
+      .from('firms')
+      .insert({ name: firmName.trim() })
+      .select()
+      .single();
 
-    if (err || !sessionId) {
-      setError(err ?? 'Failed to create session');
+    if (firmErr || !firm) {
+      setError(firmErr?.message ?? 'Failed to create firm');
       setSubmitting(false);
       return;
     }
 
-    router.push(`/sessions/${sessionId}`);
+    const { data: session, error: sessErr } = await supabase
+      .from('sessions')
+      .insert({
+        firm_id: firm.id,
+        status: 'uploading',
+        operator_name: operator.trim() || null,
+      })
+      .select()
+      .single();
+
+    if (sessErr || !session) {
+      setError(sessErr?.message ?? 'Failed to create session');
+      setSubmitting(false);
+      return;
+    }
+
+    router.push(`/sessions/${session.id}`);
   }
 
   return (

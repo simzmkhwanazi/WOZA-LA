@@ -23,9 +23,6 @@ dist/
 .DS_Store
 Thumbs.db
 
-# local data (SQLite DB + uploaded files — never commit)
-data/
-
 # logs
 npm-debug.log*
 yarn-debug.log*

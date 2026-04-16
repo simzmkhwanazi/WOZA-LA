@@ -1,22 +1,36 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { parseWorkbook } from '@/lib/parsers/generic';
 import type { SourceType } from '@/lib/schema/sources';
 import { SOURCE_LABELS } from '@/lib/schema/sources';
-import { getUploads, createUpload, insertRawRecords, type UploadRow } from '@/lib/actions/db';
 
 const SOURCE_OPTIONS: SourceType[] = ['sage', 'xero', 'sars', 'cipc', 'excel', 'employees'];
 
+interface UploadRow {
+  id: string;
+  file_name: string;
+  source_type: SourceType;
+  row_count: number | null;
+  detected_columns: string[] | null;
+}
+
 export function UploadStep({ sessionId }: { sessionId: string }) {
+  const supabase = createClient();
   const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [sourceType, setSourceType] = useState<SourceType>('sage');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadUploads = useCallback(async () => {
-    setUploads(await getUploads(sessionId));
-  }, [sessionId]);
+    const { data } = await supabase
+      .from('uploads')
+      .select('id, file_name, source_type, row_count, detected_columns')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+    setUploads((data as UploadRow[]) ?? []);
+  }, [sessionId, supabase]);
 
   useEffect(() => { loadUploads(); }, [loadUploads]);
 
@@ -27,38 +41,44 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
     setError(null);
 
     try {
-      // Parse client-side to get rows + detected columns
       const buffer = await file.arrayBuffer();
       const parsed = parseWorkbook(buffer, file.name);
       const primary = parsed.sheets.find((s) => s.sheetName === parsed.primarySheetName);
       if (!primary) throw new Error('No readable sheet found');
 
-      // Save raw file to local disk via API route
+      // Upload raw file to Supabase Storage
       const storagePath = `${sessionId}/${Date.now()}-${file.name}`;
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('storagePath', storagePath);
-      const upRes = await fetch('/api/upload-file', { method: 'POST', body: fd });
-      if (!upRes.ok) {
-        const body = await upRes.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error ?? 'File upload failed');
-      }
+      const { error: upErr } = await supabase.storage
+        .from('uploads')
+        .upload(storagePath, file);
+      if (upErr) throw upErr;
 
       // Create uploads row
-      const { uploadId, error: rowErr } = await createUpload({
-        sessionId,
-        sourceType,
-        fileName: file.name,
-        storagePath,
-        rowCount: primary.rows.length,
-        detectedColumns: primary.detectedColumns,
-      });
-      if (rowErr || !uploadId) throw new Error(rowErr ?? 'Insert failed');
+      const { data: uploadRow, error: rowErr } = await supabase
+        .from('uploads')
+        .insert({
+          session_id: sessionId,
+          source_type: sourceType,
+          file_name: file.name,
+          storage_path: storagePath,
+          row_count: primary.rows.length,
+          detected_columns: primary.detectedColumns,
+        })
+        .select()
+        .single();
+      if (rowErr || !uploadRow) throw rowErr ?? new Error('Insert failed');
 
-      // Bulk-insert raw_records (server action handles transaction internally)
-      const rawRows = primary.rows.map((data, idx) => ({ row_index: idx, data }));
-      const { error: rawErr } = await insertRawRecords(uploadId, rawRows);
-      if (rawErr) throw new Error(rawErr);
+      // Insert raw_records in chunks of 500
+      const CHUNK = 500;
+      for (let i = 0; i < primary.rows.length; i += CHUNK) {
+        const chunk = primary.rows.slice(i, i + CHUNK).map((row, idx) => ({
+          upload_id: uploadRow.id,
+          row_index: i + idx,
+          data: row,
+        }));
+        const { error: rawErr } = await supabase.from('raw_records').insert(chunk);
+        if (rawErr) throw rawErr;
+      }
 
       await loadUploads();
       e.target.value = '';

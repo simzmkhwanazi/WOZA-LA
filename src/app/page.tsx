@@ -1,10 +1,15 @@
 import Link from 'next/link';
-import { listSessions } from '@/lib/actions/db';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const sessions = await listSessions();
+  const supabase = await createClient();
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('id, status, created_at, operator_name, firms(name)')
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   return (
     <div className="space-y-6">
@@ -21,7 +26,7 @@ export default async function HomePage() {
       </div>
 
       <div className="card overflow-hidden">
-        {sessions.length > 0 ? (
+        {sessions && sessions.length > 0 ? (
           <table className="w-full text-sm">
             <thead className="bg-navy-50 text-navy-700 text-left">
               <tr>
@@ -34,14 +39,19 @@ export default async function HomePage() {
             </thead>
             <tbody className="divide-y divide-navy-100">
               {sessions.map((s) => {
+                const firmName = Array.isArray(s.firms)
+                  ? (s.firms[0] as { name?: string } | undefined)?.name ?? '—'
+                  : (s.firms as { name?: string } | null)?.name ?? '—';
                 const { cls, label } = statusBadge(s.status);
                 return (
                   <tr key={s.id} className="hover:bg-navy-50">
-                    <td className="px-4 py-3 font-medium text-navy-800">{s.firm_name}</td>
+                    <td className="px-4 py-3 font-medium text-navy-800">{firmName}</td>
                     <td className="px-4 py-3">
                       <span className={`badge ${cls}`}>{label}</span>
                     </td>
-                    <td className="px-4 py-3 text-navy-500">{s.operator_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-navy-500">
+                      {(s as { operator_name?: string | null }).operator_name ?? '—'}
+                    </td>
                     <td className="px-4 py-3 text-navy-500">
                       {new Date(s.created_at).toLocaleDateString('en-ZA')}
                     </td>
