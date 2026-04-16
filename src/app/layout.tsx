@@ -42,6 +42,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Sessions
               </Link>
               <Link
+                href="/feature-engine"
+                className="nav-link"
+              >
+                Feature Engine
+              </Link>
+              <Link
                 href="/settings"
                 className="nav-link"
               >
