@@ -60,13 +60,13 @@ export default function SessionPage() {
   if (loading) return <p className="text-navy-500">Loading session…</p>;
   if (!session) return <p className="text-rose-600">Session not found.</p>;
 
-  const steps: { key: Step; label: string }[] = [
-    { key: 'upload', label: '1. Upload' },
-    { key: 'staff', label: '2. Staff' },
-    { key: 'mapping', label: '3. Map Columns' },
-    { key: 'review', label: '4. Review' },
-    { key: 'audit', label: '5. Audit Log' },
-    { key: 'export', label: '6. Export' },
+  const steps: { key: Step; label: string; tour: string }[] = [
+    { key: 'upload',  label: '1. Upload',      tour: 'tab-upload' },
+    { key: 'staff',   label: '2. Staff',        tour: 'tab-staff' },
+    { key: 'mapping', label: '3. Map Columns',  tour: 'tab-mapping' },
+    { key: 'review',  label: '4. Review',       tour: 'tab-review' },
+    { key: 'audit',   label: '5. Audit Log',    tour: 'tab-audit' },
+    { key: 'export',  label: '6. Export',       tour: 'tab-export' },
   ];
 
   return (
@@ -99,6 +99,7 @@ export default function SessionPage() {
           <button
             key={s.key}
             onClick={() => setStep(s.key)}
+            data-tour={s.tour}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
               step === s.key
                 ? 'border-teal text-teal-700'

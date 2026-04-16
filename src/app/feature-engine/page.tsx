@@ -190,7 +190,7 @@ export default function FeatureEnginePage() {
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
 
         {/* ── Left: Session list ── */}
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden" data-tour="session-list">
           <div className="px-5 py-3 border-b border-navy-100">
             <p className="text-xs font-semibold text-navy-400 uppercase tracking-widest">
               Sessions
@@ -235,7 +235,7 @@ export default function FeatureEnginePage() {
         </div>
 
         {/* ── Right: Results ── */}
-        <div className="card p-6 min-h-[400px] flex flex-col">
+        <div className="card p-6 min-h-[400px] flex flex-col" data-tour="engine-results">
 
           {/* Empty state */}
           {!selectedSession && !loading && (

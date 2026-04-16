@@ -1,18 +1,27 @@
+'use client';
+
+import { resetAllTours } from '@/components/AppTour';
+import { useState } from 'react';
+
 export default function SettingsPage() {
+  const [tourReset, setTourReset] = useState(false);
+
+  function handleResetTour() {
+    resetAllTours();
+    setTourReset(true);
+    setTimeout(() => setTourReset(false), 2500);
+  }
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
         <h2 className="text-2xl font-semibold text-navy-800">Settings</h2>
-        <p className="text-sm text-navy-500 mt-1">
-          Application configuration for Woza La.
-        </p>
+        <p className="text-sm text-navy-500 mt-1">Application configuration for Woza La.</p>
       </div>
 
-      {/* Environment info */}
+      {/* About */}
       <div className="card p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-navy-700 uppercase tracking-widest">
-          About
-        </h3>
+        <h3 className="text-sm font-semibold text-navy-700 uppercase tracking-widest">About</h3>
         <dl className="space-y-3 text-sm">
           <div className="flex justify-between border-b border-navy-50 pb-3">
             <dt className="text-navy-500">Application</dt>
@@ -33,29 +42,35 @@ export default function SettingsPage() {
         </dl>
       </div>
 
-      {/* Links */}
+      {/* Walkthrough */}
       <div className="card p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-navy-700 uppercase tracking-widest">
-          Resources
-        </h3>
+        <h3 className="text-sm font-semibold text-navy-700 uppercase tracking-widest">Walkthrough</h3>
+        <p className="text-sm text-navy-500">
+          The guided tour runs automatically the first time you visit each section.
+          Reset it here to replay the full walkthrough — useful for training new staff.
+        </p>
+        <button
+          type="button"
+          onClick={handleResetTour}
+          className="btn btn-secondary"
+        >
+          {tourReset ? '✓ Tour reset — navigate to Sessions to start' : 'Restart Guided Tour'}
+        </button>
+      </div>
+
+      {/* Resources */}
+      <div className="card p-6 space-y-4">
+        <h3 className="text-sm font-semibold text-navy-700 uppercase tracking-widest">Resources</h3>
         <ul className="space-y-2 text-sm">
           <li>
-            <a
-              href="https://www.mydatagrows.com/features"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-teal font-medium hover:underline"
-            >
+            <a href="https://www.mydatagrows.com/features" target="_blank" rel="noopener noreferrer"
+              className="text-teal font-medium hover:underline">
               DataGrows Feature Catalogue →
             </a>
           </li>
           <li>
-            <a
-              href="https://supabase.com/dashboard/project/ckzbpxdzounicwhmtdup"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-teal font-medium hover:underline"
-            >
+            <a href="https://supabase.com/dashboard/project/ckzbpxdzounicwhmtdup" target="_blank" rel="noopener noreferrer"
+              className="text-teal font-medium hover:underline">
               Supabase Dashboard →
             </a>
           </li>

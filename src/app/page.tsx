@@ -20,12 +20,12 @@ export default async function HomePage() {
             One session per firm. Produces a single DataGrows master Excel.
           </p>
         </div>
-        <Link href="/sessions/new" className="btn btn-primary">
+        <Link href="/sessions/new" className="btn btn-primary" data-tour="btn-new-session">
           New Session
         </Link>
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden" data-tour="sessions-table">
         {sessions && sessions.length > 0 ? (
           <table className="w-full text-sm">
             <thead className="bg-navy-50 text-navy-700 text-left">

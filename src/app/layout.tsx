@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { LogoutButton } from '@/components/LogoutButton';
 import { AppShell } from '@/components/AppShell';
+import { AppTour } from '@/components/AppTour';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -37,9 +38,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav className="flex items-center gap-1">
               {user && (
                 <>
-                  <Link href="/" className="nav-link">Sessions</Link>
-                  <Link href="/feature-engine" className="nav-link hidden sm:inline-flex">Feature Engine</Link>
-                  <Link href="/settings" className="nav-link hidden sm:inline-flex">Settings</Link>
+                  <Link href="/" className="nav-link" data-tour="nav-sessions">Sessions</Link>
+                  <Link href="/feature-engine" className="nav-link hidden sm:inline-flex" data-tour="nav-feature-engine">Feature Engine</Link>
+                  <Link href="/settings" className="nav-link hidden sm:inline-flex" data-tour="nav-settings">Settings</Link>
                   <span className="text-gray-200 mx-1 hidden sm:inline">|</span>
                   <span className="text-xs text-navy-400 hidden md:inline mr-1">{user.email}</span>
                   <LogoutButton />
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* AppShell hides the teal banner and footer on /login and /signup */}
         <AppShell>{children}</AppShell>
+        {user && <AppTour />}
       </body>
     </html>
   );
