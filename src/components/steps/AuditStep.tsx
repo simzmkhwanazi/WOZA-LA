@@ -1,19 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { getEdits, type EditRow } from '@/lib/actions/db';
 import { FIELD_BY_KEY } from '@/lib/schema/datagrows';
-
-interface EditRow {
-  id: string;
-  cluster_id: string;
-  field_key: string;
-  old_value: unknown;
-  new_value: unknown;
-  operator: string | null;
-  created_at: string;
-  clusters: { merged: Record<string, unknown> } | null;
-}
 
 function displayValue(v: unknown): string {
   if (v === null || v === undefined || v === '') return '—';
@@ -22,20 +11,14 @@ function displayValue(v: unknown): string {
 }
 
 export function AuditStep({ sessionId }: { sessionId: string }) {
-  const supabase = createClient();
   const [edits, setEdits] = useState<EditRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('edits')
-      .select('id, cluster_id, field_key, old_value, new_value, operator, created_at, clusters!inner(session_id, merged)')
-      .eq('clusters.session_id', sessionId)
-      .order('created_at', { ascending: false });
-    setEdits((data as unknown as EditRow[]) ?? []);
+    setEdits(await getEdits(sessionId));
     setLoading(false);
-  }, [sessionId, supabase]);
+  }, [sessionId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -71,9 +54,6 @@ export function AuditStep({ sessionId }: { sessionId: string }) {
           <tbody className="divide-y divide-navy-100">
             {edits.map((e) => {
               const fieldLabel = FIELD_BY_KEY[e.field_key]?.header ?? e.field_key;
-              const clientName = e.clusters?.merged?.client_name
-                ? String(e.clusters.merged.client_name)
-                : e.cluster_id.slice(0, 8);
               const when = new Date(e.created_at).toLocaleString('en-ZA', {
                 day: '2-digit', month: 'short', year: 'numeric',
                 hour: '2-digit', minute: '2-digit',
@@ -81,7 +61,7 @@ export function AuditStep({ sessionId }: { sessionId: string }) {
               return (
                 <tr key={e.id} className="hover:bg-navy-50">
                   <td className="px-4 py-2 text-xs text-navy-500 whitespace-nowrap">{when}</td>
-                  <td className="px-4 py-2 font-medium text-navy-800">{clientName}</td>
+                  <td className="px-4 py-2 font-medium text-navy-800">{e.client_name}</td>
                   <td className="px-4 py-2 text-navy-700">{fieldLabel}</td>
                   <td className="px-4 py-2 text-rose-600 max-w-[160px] truncate" title={displayValue(e.old_value)}>
                     {displayValue(e.old_value)}

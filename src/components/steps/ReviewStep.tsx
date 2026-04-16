@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { DATAGROWS_FIELDS, FIELD_BY_COL, REQUIRED_FIELDS, type FieldDef, type ClientRecord } from '@/lib/schema/datagrows';
 import { validateRecord } from '@/lib/validator';
+import { getClusters, updateClusterMerged, insertEdit, type ClusterRow } from '@/lib/actions/db';
 
 // ── Field groups — every column accounted for ────────────────────────────────
 const FIELD_GROUPS: { label: string; cols: string[] }[] = [
@@ -77,15 +77,6 @@ function FieldInput({
   );
 }
 
-interface ClusterRow {
-  id: string;
-  merged: ClientRecord;
-  sources: string[];
-  archived: boolean;
-  archive_reason: string | null;
-  primary_key_value: string;
-}
-
 type Filter = 'all' | 'errors' | 'warnings' | 'archived' | 'dormant';
 
 export function ReviewStep({
@@ -95,7 +86,6 @@ export function ReviewStep({
   sessionId: string;
   operatorName?: string | null;
 }) {
-  const supabase = createClient();
   const [clusters, setClusters] = useState<ClusterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
@@ -103,13 +93,9 @@ export function ReviewStep({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('clusters')
-      .select('id, merged, sources, archived, archive_reason, primary_key_value')
-      .eq('session_id', sessionId);
-    setClusters((data as ClusterRow[]) ?? []);
+    setClusters(await getClusters(sessionId));
     setLoading(false);
-  }, [sessionId, supabase]);
+  }, [sessionId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -147,15 +133,9 @@ export function ReviewStep({
     const target = clusters.find((c) => c.id === clusterId);
     if (!target) return;
     const oldValue = (target.merged as Record<string, unknown>)[fieldKey] ?? null;
-    const newMerged = { ...target.merged, [fieldKey]: value };
-    await supabase.from('clusters').update({ merged: newMerged }).eq('id', clusterId);
-    await supabase.from('edits').insert({
-      cluster_id: clusterId,
-      field_key: fieldKey,
-      old_value: oldValue,
-      new_value: value,
-      operator: operatorName ?? null,
-    });
+    const newMerged = { ...target.merged, [fieldKey]: value } as ClientRecord;
+    await updateClusterMerged(clusterId, newMerged);
+    await insertEdit({ clusterId, fieldKey, oldValue, newValue: value, operator: operatorName ?? null });
     setClusters((prev) => prev.map((c) => (c.id === clusterId ? { ...c, merged: newMerged } : c)));
   }
 
@@ -169,7 +149,6 @@ export function ReviewStep({
     );
   }
 
-  // Show a focused view: Client Name, Entity Type, Reg Nr, Tax Nr, Status, flag count
   const preview = DATAGROWS_FIELDS.filter((f) =>
     ['client_name', 'entity_type', 'registration_nr', 'tax_nr', 'status'].includes(f.key),
   );

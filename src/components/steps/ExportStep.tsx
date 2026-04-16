@@ -1,17 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { getClusters } from '@/lib/actions/db';
 import { validateRecord } from '@/lib/validator';
 import type { ClientRecord } from '@/lib/schema/datagrows';
-
-interface ClusterRow {
-  id: string;
-  merged: ClientRecord;
-  sources: string[] | null;
-  archived: boolean;
-  archive_reason: string | null;
-}
 
 interface Summary {
   total: number;
@@ -29,7 +21,6 @@ export function ExportStep({
   sessionId: string;
   firmName: string;
 }) {
-  const supabase = createClient();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState<'datagrows' | 'archived' | null>(null);
@@ -37,12 +28,8 @@ export function ExportStep({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('clusters')
-      .select('id, merged, sources, archived, archive_reason')
-      .eq('session_id', sessionId);
+    const rows = await getClusters(sessionId);
 
-    const rows = (data as ClusterRow[]) ?? [];
     let readyToExport = 0;
     let withErrors = 0;
     let withWarnings = 0;
@@ -50,11 +37,8 @@ export function ExportStep({
     let dormant = 0;
 
     for (const r of rows) {
-      if (r.archived) {
-        archived += 1;
-        continue;
-      }
-      const v = validateRecord(r.merged);
+      if (r.archived) { archived += 1; continue; }
+      const v = validateRecord(r.merged as ClientRecord);
       const errs = v.issues.filter((i) => i.severity === 'error').length;
       const warns = v.issues.filter((i) => i.severity === 'warning').length;
       if (errs > 0) withErrors += 1;
@@ -63,16 +47,9 @@ export function ExportStep({
       if (r.merged.status === 'Dormant') dormant += 1;
     }
 
-    setSummary({
-      total: rows.length,
-      readyToExport,
-      withErrors,
-      withWarnings,
-      archived,
-      dormant,
-    });
+    setSummary({ total: rows.length, readyToExport, withErrors, withWarnings, archived, dormant });
     setLoading(false);
-  }, [sessionId, supabase]);
+  }, [sessionId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -82,7 +59,7 @@ export function ExportStep({
     try {
       const res = await fetch(`/api/export/${sessionId}?type=${type}`);
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error ?? `Export failed (${res.status})`);
       }
       const blob = await res.blob();
