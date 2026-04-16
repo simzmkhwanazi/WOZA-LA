@@ -22,7 +22,7 @@ interface Summary {
   dormant: number;
 }
 
-type ReviewFilter = 'all' | 'errors' | 'warnings' | 'archived' | 'dormant';
+type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
 
 export function ExportStep({
   sessionId,
@@ -145,6 +145,7 @@ export function ExportStep({
             label="Ready to export"
             value={summary.readyToExport}
             tone="ok"
+            onClick={onNavigateToReview && summary.readyToExport > 0 ? () => onNavigateToReview('ready') : undefined}
           />
           <Stat
             label="Blocked (errors)"

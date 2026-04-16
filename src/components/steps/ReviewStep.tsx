@@ -87,7 +87,7 @@ interface ClusterRow {
   primary_key_value: string;
 }
 
-type Filter = 'all' | 'errors' | 'warnings' | 'archived' | 'dormant';
+type Filter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
 
 export function ReviewStep({
   sessionId,
@@ -127,6 +127,8 @@ export function ReviewStep({
 
   const filtered = useMemo(() => {
     switch (filter) {
+      case 'ready':
+        return decorated.filter((c) => !c.archived && c.validation.ok);
       case 'errors':
         return decorated.filter((c) => !c.archived && c.validation.issues.some((i) => i.severity === 'error'));
       case 'warnings':
@@ -142,6 +144,7 @@ export function ReviewStep({
 
   const counts = useMemo(() => ({
     all: decorated.length,
+    ready: decorated.filter((c) => !c.archived && c.validation.ok).length,
     errors: decorated.filter((c) => !c.archived && c.validation.issues.some((i) => i.severity === 'error')).length,
     warnings: decorated.filter((c) => !c.archived && c.validation.issues.some((i) => i.severity === 'warning')).length,
     archived: decorated.filter((c) => c.archived).length,
@@ -204,10 +207,11 @@ export function ReviewStep({
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
         {([
-          ['all', `All (${counts.all})`],
-          ['errors', `Errors (${counts.errors})`],
+          ['all',      `All (${counts.all})`],
+          ['ready',    `Ready (${counts.ready})`],
+          ['errors',   `Errors (${counts.errors})`],
           ['warnings', `Warnings (${counts.warnings})`],
-          ['dormant', `Dormant (${counts.dormant})`],
+          ['dormant',  `Dormant (${counts.dormant})`],
           ['archived', `Archived (${counts.archived})`],
         ] as [Filter, string][]).map(([k, label]) => (
           <button

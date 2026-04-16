@@ -10,7 +10,7 @@ import { ExportStep } from '@/components/steps/ExportStep';
 import { AuditStep } from '@/components/steps/AuditStep';
 
 type Step = 'upload' | 'mapping' | 'review' | 'export' | 'audit';
-type ReviewFilter = 'all' | 'errors' | 'warnings' | 'archived' | 'dormant';
+type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
 
 interface SessionDto {
   id: string;
