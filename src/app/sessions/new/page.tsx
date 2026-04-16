@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 export default function NewSessionPage() {
   const router = useRouter();
   const [firmName, setFirmName] = useState('');
-  const [operator, setOperator] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +18,7 @@ export default function NewSessionPage() {
       const res = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firmName: firmName.trim(), operatorName: operator.trim() || null }),
+        body: JSON.stringify({ firmName: firmName.trim() }),
       });
 
       const data = await res.json() as { sessionId?: string; error?: string };
@@ -42,6 +41,7 @@ export default function NewSessionPage() {
       <h2 className="text-2xl font-semibold text-navy-800">New Onboarding Session</h2>
       <p className="text-sm text-navy-500 mt-1 mb-6">
         Create a new session for a firm (e.g. &quot;Rich Accountants&quot;).
+        The operator is automatically recorded from your login.
       </p>
 
       <form onSubmit={handleSubmit} className="card p-6 space-y-4">
@@ -54,20 +54,8 @@ export default function NewSessionPage() {
             value={firmName}
             onChange={(e) => setFirmName(e.target.value)}
             required
+            autoFocus
             placeholder="Rich Accountants"
-            className="input"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-navy-700 mb-1">
-            Operator (DataGrows staff running this onboarding)
-          </label>
-          <input
-            type="text"
-            value={operator}
-            onChange={(e) => setOperator(e.target.value)}
-            placeholder="Your name"
             className="input"
           />
         </div>

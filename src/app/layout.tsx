@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { LogoutButton } from '@/components/LogoutButton';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -8,7 +10,10 @@ export const metadata: Metadata = {
 };
 
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <html lang="en">
       <body>
@@ -33,26 +38,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </Link>
 
-            {/* Nav — same style as DataGrows: plain links + teal underline on active */}
+            {/* Nav */}
             <nav className="flex items-center gap-1">
-              <Link
-                href="/"
-                className="nav-link"
-              >
-                Sessions
-              </Link>
-              <Link
-                href="/feature-engine"
-                className="nav-link"
-              >
-                Feature Engine
-              </Link>
-              <Link
-                href="/settings"
-                className="nav-link"
-              >
-                Settings
-              </Link>
+              {user && (
+                <>
+                  <Link href="/" className="nav-link">Sessions</Link>
+                  <Link href="/feature-engine" className="nav-link">Feature Engine</Link>
+                  <Link href="/settings" className="nav-link">Settings</Link>
+                  <span className="text-gray-200 mx-1">|</span>
+                  <span className="text-xs text-navy-400 hidden sm:inline mr-1">{user.email}</span>
+                  <LogoutButton />
+                </>
+              )}
             </nav>
           </div>
         </header>

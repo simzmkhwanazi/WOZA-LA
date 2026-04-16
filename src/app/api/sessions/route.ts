@@ -1,28 +1,32 @@
 /**
  * POST /api/sessions
- * Creates a firm (upsert by name) and a new session in one server-side call.
- * Uses the service-role client to bypass RLS.
+ * Creates a firm and a new session server-side.
+ * Operator name is auto-detected from the logged-in user — no manual entry needed.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const { firmName, operatorName } = await req.json() as {
-    firmName?: string;
-    operatorName?: string;
-  };
+  const { firmName } = await req.json() as { firmName?: string };
 
   if (!firmName?.trim()) {
     return NextResponse.json({ error: 'Firm name is required' }, { status: 400 });
   }
 
+  // Resolve the logged-in user for operator_name auto-detection
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  const operatorName =
+    (user?.user_metadata?.full_name as string | undefined) ??
+    user?.email ??
+    null;
+
   const supabase = createServiceClient();
 
-  // Insert firm
   const { data: firm, error: firmErr } = await supabase
     .from('firms')
     .insert({ name: firmName.trim() })
@@ -36,13 +40,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Insert session
   const { data: session, error: sessErr } = await supabase
     .from('sessions')
     .insert({
       firm_id: firm.id,
       status: 'uploading',
-      operator_name: operatorName?.trim() || null,
+      operator_name: operatorName,
     })
     .select()
     .single();
