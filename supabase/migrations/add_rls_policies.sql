@@ -12,13 +12,15 @@ alter table if exists audit_log            enable row level security;
 alter table if exists staff                enable row level security;
 alter table if exists feature_engine_logs  enable row level security;
 
--- Drop old policies if they exist, then recreate
+-- Drop old policies if they exist, then recreate (skips tables that don't exist yet)
 do $$ declare t text;
 begin
   foreach t in array array['firms','sessions','uploads','raw_records','clusters','audit_log','staff','feature_engine_logs']
   loop
-    execute format('drop policy if exists "auth_all_%s" on %s', t, t);
-    execute format('create policy "auth_all_%s" on %s for all to authenticated using (true) with check (true)', t, t);
+    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = t) then
+      execute format('drop policy if exists "auth_all_%s" on %s', t, t);
+      execute format('create policy "auth_all_%s" on %s for all to authenticated using (true) with check (true)', t, t);
+    end if;
   end loop;
 end $$;
 
