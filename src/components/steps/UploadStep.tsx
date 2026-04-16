@@ -79,7 +79,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
     try {
       const storagePath = `${sessionId}/${Date.now()}-${file.name}`;
 
-      // Upload raw file to Supabase Storage
+      // Upload raw file directly to Supabase Storage from the browser
       const { error: upErr } = await supabase.storage
         .from('uploads')
         .upload(storagePath, file, { upsert: false });
@@ -87,60 +87,39 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
 
       let rowCount: number | null = null;
       let detectedColumns: string[] | null = null;
+      let rows: Record<string, unknown>[] | null = null;
 
       if (isSpreadsheet(file)) {
         setUploadProgress('Parsing spreadsheet…');
         const buffer = await file.arrayBuffer();
         const parsed = parseWorkbook(buffer, file.name);
         const primary = parsed.sheets.find((s) => s.sheetName === parsed.primarySheetName);
-
         if (primary) {
           rowCount = primary.rows.length;
           detectedColumns = primary.detectedColumns;
-
-          // Insert raw_records in chunks of 500
-          setUploadProgress('Saving records…');
-          const { data: uploadRow, error: rowErr } = await supabase
-            .from('uploads')
-            .insert({
-              session_id: sessionId,
-              source_type: sourceType,
-              file_name: file.name,
-              storage_path: storagePath,
-              row_count: rowCount,
-              detected_columns: detectedColumns,
-            })
-            .select()
-            .single();
-          if (rowErr || !uploadRow) throw rowErr ?? new Error('Insert failed');
-
-          const CHUNK = 500;
-          for (let i = 0; i < primary.rows.length; i += CHUNK) {
-            const chunk = primary.rows.slice(i, i + CHUNK).map((row, idx) => ({
-              upload_id: uploadRow.id,
-              row_index: i + idx,
-              data: row,
-            }));
-            const { error: rawErr } = await supabase.from('raw_records').insert(chunk);
-            if (rawErr) throw rawErr;
-          }
+          rows = primary.rows;
         }
-      } else if (isPdf(file)) {
-        // PDFs are stored for reference only — no data extraction
-        const { error: rowErr } = await supabase
-          .from('uploads')
-          .insert({
-            session_id: sessionId,
-            source_type: sourceType,
-            file_name: file.name,
-            storage_path: storagePath,
-            row_count: null,
-            detected_columns: null,
-          });
-        if (rowErr) throw rowErr;
-      } else {
+      } else if (!isPdf(file)) {
         throw new Error('Unsupported file type. Please upload .xlsx, .xls, .csv, or .pdf.');
       }
+
+      // Save metadata + records via server-side API (uses service role key, bypasses RLS)
+      setUploadProgress('Saving records…');
+      const res = await fetch('/api/uploads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          sourceType,
+          fileName: file.name,
+          storagePath,
+          rowCount,
+          detectedColumns,
+          rows,
+        }),
+      });
+      const result = await res.json() as { uploadId?: string; error?: string };
+      if (!res.ok) throw new Error(result.error ?? 'Failed to save upload');
 
       await loadUploads();
       e.target.value = '';
