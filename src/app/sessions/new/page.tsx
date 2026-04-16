@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 
 export default function NewSessionPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [firmName, setFirmName] = useState('');
   const [operator, setOperator] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -17,35 +15,26 @@ export default function NewSessionPage() {
     setSubmitting(true);
     setError(null);
 
-    const { data: firm, error: firmErr } = await supabase
-      .from('firms')
-      .insert({ name: firmName.trim() })
-      .select()
-      .single();
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firmName: firmName.trim(), operatorName: operator.trim() || null }),
+      });
 
-    if (firmErr || !firm) {
-      setError(firmErr?.message ?? 'Failed to create firm');
+      const data = await res.json() as { sessionId?: string; error?: string };
+
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to create session');
+        setSubmitting(false);
+        return;
+      }
+
+      router.push(`/sessions/${data.sessionId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create session');
       setSubmitting(false);
-      return;
     }
-
-    const { data: session, error: sessErr } = await supabase
-      .from('sessions')
-      .insert({
-        firm_id: firm.id,
-        status: 'uploading',
-        operator_name: operator.trim() || null,
-      })
-      .select()
-      .single();
-
-    if (sessErr || !session) {
-      setError(sessErr?.message ?? 'Failed to create session');
-      setSubmitting(false);
-      return;
-    }
-
-    router.push(`/sessions/${session.id}`);
   }
 
   return (
