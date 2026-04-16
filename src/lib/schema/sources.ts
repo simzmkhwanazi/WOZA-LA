@@ -11,7 +11,8 @@ export type SourceType =
   | 'sage'
   | 'xero'
   | 'excel'          // generic manual Excel from the firm
-  | 'employees';     // the firm's employee/staff list upload
+  | 'employees'      // the firm's employee/staff list upload
+  | 'company';       // the firm's own company details / service-provider profile
 
 export const SOURCE_LABELS: Record<SourceType, string> = {
   cipc: 'CIPC',
@@ -20,6 +21,7 @@ export const SOURCE_LABELS: Record<SourceType, string> = {
   xero: 'Xero',
   excel: 'Manual Excel',
   employees: 'Employee List',
+  company: 'Company Details',
 };
 
 /**
@@ -34,6 +36,7 @@ export const SOURCE_LABELS: Record<SourceType, string> = {
  * Any field not listed falls back to DEFAULT_PRIORITY.
  */
 export const DEFAULT_PRIORITY: readonly SourceType[] = [
+  'company',
   'cipc',
   'sars',
   'sage',
@@ -43,35 +46,35 @@ export const DEFAULT_PRIORITY: readonly SourceType[] = [
 ];
 
 export const FIELD_PRIORITY: Record<string, readonly SourceType[]> = {
-  // Registration & identity — CIPC authoritative
-  client_name:         ['cipc', 'sars', 'sage', 'xero', 'excel'],
-  entity_type:         ['cipc', 'sars', 'sage', 'xero', 'excel'],
-  registration_nr:     ['cipc', 'sars', 'sage', 'xero', 'excel'],
-  registration_date:   ['cipc', 'sars', 'sage', 'xero', 'excel'],
-  trust_deed_number:   ['cipc', 'sars', 'sage', 'xero', 'excel'],
+  // Registration & identity — Company Details > CIPC authoritative
+  client_name:         ['company', 'cipc', 'sars', 'sage', 'xero', 'excel'],
+  entity_type:         ['company', 'cipc', 'sars', 'sage', 'xero', 'excel'],
+  registration_nr:     ['company', 'cipc', 'sars', 'sage', 'xero', 'excel'],
+  registration_date:   ['company', 'cipc', 'sars', 'sage', 'xero', 'excel'],
+  trust_deed_number:   ['company', 'cipc', 'sars', 'sage', 'xero', 'excel'],
 
-  // Tax identifiers — SARS authoritative
-  tax_nr:              ['sars', 'sage', 'xero', 'excel'],
-  paye_nr:             ['sars', 'sage', 'xero', 'excel'],
-  vat_nr:              ['sars', 'sage', 'xero', 'excel'],
-  uif_reg:             ['sars', 'sage', 'xero', 'excel'],
-  customs_nr:          ['sars', 'sage', 'xero', 'excel'],
-  workmans_ref_nr:     ['sars', 'sage', 'xero', 'excel'],
+  // Tax identifiers — SARS authoritative, Company Details as first fallback
+  tax_nr:              ['sars', 'company', 'sage', 'xero', 'excel'],
+  paye_nr:             ['sars', 'company', 'sage', 'xero', 'excel'],
+  vat_nr:              ['sars', 'company', 'sage', 'xero', 'excel'],
+  uif_reg:             ['sars', 'company', 'sage', 'xero', 'excel'],
+  customs_nr:          ['sars', 'company', 'sage', 'xero', 'excel'],
+  workmans_ref_nr:     ['sars', 'company', 'sage', 'xero', 'excel'],
 
-  // Contact / address — Sage primary, Xero fallback, Excel last
-  primary_contact:     ['sage', 'xero', 'excel', 'sars', 'cipc'],
-  contact_nr:          ['sage', 'xero', 'excel', 'cipc', 'sars'],
-  contact_email:       ['sage', 'xero', 'excel', 'cipc', 'sars'],
-  physical_line1:      ['sage', 'xero', 'cipc', 'excel'],
-  physical_line2:      ['sage', 'xero', 'cipc', 'excel'],
-  physical_line3:      ['sage', 'xero', 'cipc', 'excel'],
-  physical_line4:      ['sage', 'xero', 'cipc', 'excel'],
-  physical_city:       ['sage', 'xero', 'cipc', 'excel'],
-  physical_province:   ['sage', 'xero', 'cipc', 'excel'],
-  physical_postal:     ['sage', 'xero', 'cipc', 'excel'],
-  physical_country:    ['sage', 'xero', 'cipc', 'excel'],
-  postal_line1:        ['sage', 'xero', 'cipc', 'excel'],
-  postal_city:         ['sage', 'xero', 'cipc', 'excel'],
+  // Contact / address — Company Details > Sage > Xero > Excel
+  primary_contact:     ['company', 'sage', 'xero', 'excel', 'sars', 'cipc'],
+  contact_nr:          ['company', 'sage', 'xero', 'excel', 'cipc', 'sars'],
+  contact_email:       ['company', 'sage', 'xero', 'excel', 'cipc', 'sars'],
+  physical_line1:      ['company', 'sage', 'xero', 'cipc', 'excel'],
+  physical_line2:      ['company', 'sage', 'xero', 'cipc', 'excel'],
+  physical_line3:      ['company', 'sage', 'xero', 'cipc', 'excel'],
+  physical_line4:      ['company', 'sage', 'xero', 'cipc', 'excel'],
+  physical_city:       ['company', 'sage', 'xero', 'cipc', 'excel'],
+  physical_province:   ['company', 'sage', 'xero', 'cipc', 'excel'],
+  physical_postal:     ['company', 'sage', 'xero', 'cipc', 'excel'],
+  physical_country:    ['company', 'sage', 'xero', 'cipc', 'excel'],
+  postal_line1:        ['company', 'sage', 'xero', 'cipc', 'excel'],
+  postal_city:         ['company', 'sage', 'xero', 'cipc', 'excel'],
 
   // Accounting config — Sage > Xero
   accounting_program:  ['sage', 'xero', 'excel'],

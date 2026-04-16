@@ -6,7 +6,7 @@ import { parseWorkbook } from '@/lib/parsers/generic';
 import type { SourceType } from '@/lib/schema/sources';
 import { SOURCE_LABELS } from '@/lib/schema/sources';
 
-const SOURCE_OPTIONS: SourceType[] = ['sage', 'xero', 'sars', 'cipc', 'excel', 'employees'];
+const SOURCE_OPTIONS: SourceType[] = ['company', 'sage', 'xero', 'sars', 'cipc', 'excel', 'employees'];
 
 interface UploadRow {
   id: string;
@@ -19,7 +19,7 @@ interface UploadRow {
 export function UploadStep({ sessionId }: { sessionId: string }) {
   const supabase = createClient();
   const [uploads, setUploads] = useState<UploadRow[]>([]);
-  const [sourceType, setSourceType] = useState<SourceType>('sage');
+  const [sourceType, setSourceType] = useState<SourceType>('company');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,6 +122,14 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
             />
           </div>
         </div>
+        {sourceType === 'company' && (
+          <p className="text-xs text-navy-400 mt-3 bg-navy-50 rounded-lg px-3 py-2">
+            <strong className="text-navy-600">Company Details</strong> — upload the firm&apos;s own
+            profile: registration certificate, letterhead, or a spreadsheet with company name,
+            registration number, VAT number, PAYE number, address and contact details.
+            This creates their service-provider profile in DataGrows.
+          </p>
+        )}
         {uploading && <p className="text-sm text-teal-700 mt-3">Parsing and uploading…</p>}
         {error && <p className="text-sm text-rose-600 mt-3">{error}</p>}
       </div>
