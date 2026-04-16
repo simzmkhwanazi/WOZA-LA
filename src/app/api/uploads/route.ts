@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { normalizeSourceType } from '@/lib/normalizers/source-type';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  // Normalize the source type before any DB insert
+  let normalized: Awaited<ReturnType<typeof normalizeSourceType>>;
+  try {
+    normalized = await normalizeSourceType(sourceType);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Invalid source type' },
+      { status: 422 },
+    );
+  }
+
   const supabase = createServiceClient();
 
   // Insert uploads row
@@ -38,7 +50,8 @@ export async function POST(req: NextRequest) {
     .from('uploads')
     .insert({
       session_id: sessionId,
-      source_type: sourceType,
+      source_type: normalized.sourceType,
+      source_raw: normalized.sourceRaw,
       file_name: fileName,
       storage_path: storagePath,
       row_count: rowCount ?? null,

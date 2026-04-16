@@ -6,7 +6,16 @@ import { parseWorkbook } from '@/lib/parsers/generic';
 import type { SourceType } from '@/lib/schema/sources';
 import { SOURCE_LABELS } from '@/lib/schema/sources';
 
-const SOURCE_OPTIONS: SourceType[] = ['company', 'sage', 'xero', 'sars', 'cipc', 'excel', 'employees'];
+// Suggested labels for the datalist — users can type anything else too
+const SOURCE_SUGGESTIONS: string[] = [
+  'Company Details',
+  'CIPC',
+  'SARS',
+  'Sage',
+  'Xero',
+  'Employee List',
+  'Manual Excel',
+];
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
@@ -35,7 +44,7 @@ type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 interface UploadItem {
   id: string;
   file: File | null;
-  source: SourceType;
+  source: string;           // free-text; normalised server-side before DB insert
   status: UploadStatus;
   progress: number;
   error?: string;
@@ -45,6 +54,7 @@ interface UploadedRow {
   id: string;
   file_name: string;
   source_type: SourceType;
+  source_raw: string | null;
   row_count: number | null;
   detected_columns: string[] | null;
 }
@@ -74,7 +84,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
 
   // Queue of items to upload
   const [queue, setQueue] = useState<UploadItem[]>([
-    { id: makeId(), file: null, source: 'company', status: 'idle', progress: 0 },
+    { id: makeId(), file: null, source: 'Company Details', status: 'idle', progress: 0 },
   ]);
 
   // Already-uploaded files shown in the table below
@@ -88,7 +98,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
   const loadUploads = useCallback(async () => {
     const { data } = await supabase
       .from('uploads')
-      .select('id, file_name, source_type, row_count, detected_columns')
+      .select('id, file_name, source_type, source_raw, row_count, detected_columns')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
     setUploaded((data as UploadedRow[]) ?? []);
@@ -99,7 +109,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
   // ── Queue management ─────────────────────────────────────────────────────────
 
   function addRow() {
-    setQueue((q) => [...q, { id: makeId(), file: null, source: 'company', status: 'idle', progress: 0 }]);
+    setQueue((q) => [...q, { id: makeId(), file: null, source: '', status: 'idle', progress: 0 }]);
   }
 
   function removeRow(id: string) {
@@ -110,7 +120,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
     setQueue((q) => q.map((item) => item.id === id ? { ...item, file, error: undefined, status: 'idle' } : item));
   }
 
-  function setSource(id: string, source: SourceType) {
+  function setSource(id: string, source: string) {
     setQueue((q) => q.map((item) => item.id === id ? { ...item, source } : item));
   }
 
@@ -250,6 +260,11 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
           to upload them in parallel. Max 50 MB per file.
         </p>
 
+        {/* Datalist for source suggestions */}
+        <datalist id="source-suggestions">
+          {SOURCE_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
+        </datalist>
+
         <div className="space-y-3">
           {queue.map((item, idx) => (
             <div key={item.id} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
@@ -257,17 +272,16 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
               {/* Row number */}
               <span className="text-xs text-navy-400 w-5 text-right flex-shrink-0">{idx + 1}.</span>
 
-              {/* Source selector */}
-              <select
+              {/* Source — free text with suggestions; normalised server-side */}
+              <input
+                type="text"
+                list="source-suggestions"
                 value={item.source}
-                onChange={(e) => setSource(item.id, e.target.value as SourceType)}
+                onChange={(e) => setSource(item.id, e.target.value)}
                 disabled={item.status === 'uploading'}
-                className="input text-sm flex-shrink-0 w-40"
-              >
-                {SOURCE_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{SOURCE_LABELS[s]}</option>
-                ))}
-              </select>
+                placeholder="e.g. Company Details, SARS…"
+                className="input text-sm flex-shrink-0 w-44"
+              />
 
               {/* File input */}
               <input
@@ -377,7 +391,12 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
                   <tr key={u.id}>
                     <td className="px-4 py-2 font-medium text-navy-800">{u.file_name}</td>
                     <td className="px-4 py-2">
-                      <span className="badge badge-muted">{SOURCE_LABELS[u.source_type]}</span>
+                      <span
+                        className="badge badge-muted"
+                        title={u.source_raw && u.source_raw !== u.source_type ? `Original: "${u.source_raw}"` : undefined}
+                      >
+                        {SOURCE_LABELS[u.source_type]}
+                      </span>
                     </td>
                     <td className="px-4 py-2 text-navy-400 text-xs uppercase tracking-wide">
                       {isPdfFile ? 'PDF' : u.file_name.split('.').pop()?.toUpperCase() ?? '—'}
