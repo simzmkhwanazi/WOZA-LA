@@ -254,7 +254,6 @@ export function MappingStep({
   // function whose reference changes every parent render, which would cause
   // run() to be re-created and the effect to fire unnecessarily.
   // It is only called by the explicit "Go to Review →" buttons, never inside run().
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, supabase]);
 
   useEffect(() => { run(); }, [run]);

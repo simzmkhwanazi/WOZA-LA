@@ -419,9 +419,6 @@ export function ReviewStep({
               const isOpen = editing === c.id;
               const clusterEdits = editsByCluster[c.id] ?? [];
               const isModified = clusterEdits.length > 0;
-              // The actual cluster data (may differ from decorated c due to live edits)
-              const target = clusters.find((cl) => cl.id === c.id);
-              const v = target ? validateRecord(target.merged) : c.validation;
               return (
                 <tr
                   key={c.id}

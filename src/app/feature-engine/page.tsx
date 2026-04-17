@@ -114,6 +114,7 @@ export default function FeatureEnginePage() {
   const [result, setResult] = useState<EngineResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const loadSessions = useCallback(async () => {
     const { data } = await supabase
@@ -157,6 +158,31 @@ export default function FeatureEnginePage() {
       setError(err instanceof Error ? err.message : 'Feature engine failed. Please try again.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function downloadExcel() {
+    if (!selectedSession) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/export/${selectedSession.id}?type=features_pdf`);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = res.headers.get('Content-Disposition') ?? '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const safeName = (selectedSession.firms?.name ?? 'firm').replace(/[^a-z0-9_-]/gi, '_').slice(0, 60);
+      a.download = match?.[1] ?? `${safeName}_datagrows_features.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Non-critical — user can retry
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -277,13 +303,23 @@ export default function FeatureEnginePage() {
                     Feature recommendations based on {result.profile.totalClients} clients
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => { setResult(null); setSelectedSession(null); setError(null); }}
-                  className="btn btn-ghost text-xs shrink-0"
-                >
-                  Clear
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={downloadExcel}
+                    disabled={downloading}
+                    className="btn btn-secondary text-xs"
+                  >
+                    {downloading ? 'Downloading…' : 'Download Excel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setResult(null); setSelectedSession(null); setError(null); }}
+                    className="btn btn-ghost text-xs"
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
 
               {/* Portfolio stats */}

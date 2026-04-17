@@ -73,7 +73,7 @@ export default function HomePage() {
 
       // Fetch post-export edits — check if any edits exist after last_exported_at per session
       const exportedSessions = rows.filter((r) => r.last_exported_at);
-      let pendingReExportIds = new Set<string>();
+      const pendingReExportIds = new Set<string>();
       if (exportedSessions.length > 0) {
         // For each exported session, check if edits exist after last_exported_at
         for (const s of exportedSessions) {
@@ -91,7 +91,7 @@ export default function HomePage() {
         const sessionClusters = (clusterData ?? []).filter((c) => c.session_id === s.id);
         const dates = sessionClusters.map((c) => c.created_at).filter(Boolean).sort().reverse();
         let errors = 0;
-        let warnings = 0;
+        const warnings = 0;
         for (const c of sessionClusters) {
           if (c.archived) continue;
           // Simple validation check from merged data
