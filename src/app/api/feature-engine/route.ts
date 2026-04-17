@@ -16,95 +16,6 @@ import type { ClientRecord } from '@/lib/schema/datagrows';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// ── DataGrows features catalogue ───────────────────────────────────────────────
-
-const DATAGROWS_FEATURES = [
-  {
-    name: 'Automated Emails',
-    description:
-      'Automatically send emails to clients for document requests, reminders, and status updates',
-  },
-  {
-    name: 'Client Management',
-    description:
-      'Centralised client database with all key information, contacts, and service history',
-  },
-  {
-    name: 'Workflow Automation',
-    description:
-      'Automate recurring tasks like VAT returns, payroll runs, and CIPC filings across the client portfolio',
-  },
-  {
-    name: 'Real-Time Reporting',
-    description:
-      'Live dashboards showing work-in-progress, client status, and team performance metrics',
-  },
-  {
-    name: 'Document Management',
-    description:
-      'Cloud-based document storage and retrieval linked directly to each client record',
-  },
-  {
-    name: 'SARS and CIPC Day Counter',
-    description:
-      'Track SARS submission deadlines and CIPC annual return dates with automated countdown alerts',
-  },
-  {
-    name: 'Upselling to Clients',
-    description:
-      "Identify cross-sell and upsell opportunities based on each client's profile and current services",
-  },
-  {
-    name: 'To-Do List Dashboard',
-    description:
-      'Team-wide task management dashboard with priority ranking and deadline tracking per client',
-  },
-  {
-    name: 'Automated Timekeeping Per Task',
-    description:
-      'Auto-log time spent on each client task for accurate billing and productivity reporting',
-  },
-  {
-    name: 'Share Registers & Share Certificates',
-    description:
-      'Generate and maintain statutory share registers and share certificates for registered companies',
-  },
-  {
-    name: 'CIPC Beneficial Ownership',
-    description:
-      'Manage, store and submit CIPC Beneficial Ownership declarations for registered entities',
-  },
-  {
-    name: 'Upskill Your Entire Team',
-    description:
-      'In-app training modules and CPD tracking to grow the skills of the entire accounting team',
-  },
-] as const;
-
-const SYSTEM_PROMPT = `You are a DataGrows feature relevance expert. DataGrows is a South African accounting SaaS platform used by accounting firms to manage their client portfolios.
-
-Given a statistical profile of an accounting firm's client portfolio, recommend which DataGrows product features will deliver the most immediate value.
-
-The 12 available DataGrows features are:
-${DATAGROWS_FEATURES.map((f, i) => `${i + 1}. ${f.name} — ${f.description}`).join('\n')}
-
-Return ONLY a valid JSON object — no explanation, no markdown, no code fences — with this exact structure:
-{
-  "urgent_features": [
-    { "name": "Feature Name", "reason": "One sentence explaining why this is urgent given the specific portfolio data" }
-  ],
-  "nice_to_have_features": [
-    { "name": "Feature Name", "reason": "One sentence explaining why this would benefit them" }
-  ]
-}
-
-Rules:
-- urgent_features: 3–5 features that should be activated immediately based on the portfolio data
-- nice_to_have_features: 3–5 features that are beneficial but not immediately critical
-- Only recommend features from the 12 listed above — do not invent new feature names
-- Justify each recommendation with specifics from the data (e.g. "47 of 120 clients have VAT registration")
-- Prioritise features that address the largest segments or highest compliance risk`;
-
 // ── Profile extraction ─────────────────────────────────────────────────────────
 
 function isTrue(v: unknown): boolean {
@@ -190,42 +101,105 @@ function buildProfile(records: ClientRecord[], firmName: string): PortfolioProfi
   return profile;
 }
 
-function profileToText(p: PortfolioProfile): string {
-  const entityLines = Object.entries(p.entityTypeCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `  - ${k}: ${v}`)
-    .join('\n');
+// ── Rule-based feature scoring ─────────────────────────────────────────────────
 
-  const progLines = Object.entries(p.accountingPrograms)
-    .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `  - ${k}: ${v}`)
-    .join('\n');
+interface ScoredFeature {
+  name: string;
+  score: number;
+  evidence: string;
+  action: string;
+}
 
-  return `Firm: ${p.firmName}
-Total clients: ${p.totalClients}
-  Active: ${p.activeClients} | Dormant: ${p.dormantClients}
+function scoreFeatures(profile: PortfolioProfile): ScoredFeature[] {
+  const t = profile.totalClients || 1;
+  const pct = (n: number) => Math.round((n / t) * 100);
 
-Entity types:
-${entityLines || '  - (none recorded)'}
+  const vatPct   = pct(profile.vatClients);
+  const payePct  = pct(profile.payeClients);
+  const cipcPct  = pct(profile.cipcClients);
 
-Tax & compliance registrations:
-  - VAT-registered: ${p.vatClients}
-  - PAYE-registered: ${p.payeClients}
-  - CIPC registered entities: ${p.cipcClients}
-  - Income tax clients: ${p.incomeTaxClients}
-  - Provisional tax clients: ${p.provisionalTaxClients}
+  const features: ScoredFeature[] = [
+    {
+      name: 'SARS and CIPC Day Counter',
+      score: Math.min(95, 35 + Math.round((profile.vatClients + profile.cipcClients) / (t * 2) * 65)),
+      evidence: `${profile.vatClients} VAT-registered clients (${vatPct}%) and ${profile.cipcClients} CIPC-registered entities (${cipcPct}%) face regular submission deadlines.`,
+      action: 'Activate the Day Counter immediately to track SARS and CIPC due dates and eliminate missed submissions.',
+    },
+    {
+      name: 'CIPC Beneficial Ownership',
+      score: Math.min(90, 15 + Math.round(profile.cipcClients / t * 80)),
+      evidence: `${profile.cipcClients} of ${t} clients (${cipcPct}%) are registered entities subject to Beneficial Ownership requirements.`,
+      action: cipcPct > 0
+        ? `Required by law — activate Beneficial Ownership management for all ${profile.cipcClients} CIPC clients to avoid penalties.`
+        : 'Not yet applicable — activate when you onboard registered company clients.',
+    },
+    {
+      name: 'Workflow Automation',
+      score: Math.min(90, 25 + Math.round((profile.vatClients + profile.payeClients + profile.payrollClients) / (t * 3) * 75)),
+      evidence: `${profile.vatClients} VAT, ${profile.payeClients} PAYE, and ${profile.payrollClients} payroll clients each need recurring processing every period.`,
+      action: 'Automate VAT returns, payroll runs, and CIPC filings to reduce manual effort and compliance risk.',
+    },
+    {
+      name: 'Client Management',
+      score: Math.min(95, 45 + Math.min(50, Math.round(profile.activeClients / 4))),
+      evidence: `${profile.activeClients} active clients across ${Object.keys(profile.entityTypeCounts).length} entity types require structured management.`,
+      action: 'Centralise all client records, service history, and deadlines in DataGrows Client Management.',
+    },
+    {
+      name: 'Automated Emails',
+      score: Math.min(88, 30 + Math.min(58, Math.round(profile.activeClients / 3))),
+      evidence: `${profile.activeClients} active clients require regular communication, document requests, and deadline reminders.`,
+      action: 'Enable Automated Emails to send deadline alerts and document requests without manual follow-up.',
+    },
+    {
+      name: 'Real-Time Reporting',
+      score: Math.min(85, 30 + Math.min(55, Math.round(profile.totalClients / 5))),
+      evidence: `${profile.totalClients} clients across ${Object.keys(profile.entityTypeCounts).length} entity types — partners need visibility into team workload and progress.`,
+      action: 'Enable Real-Time Reporting dashboards for partners and managers to track work-in-progress.',
+    },
+    {
+      name: 'Document Management',
+      score: profile.documentFolderClients < t * 0.3 ? 78 : 42,
+      evidence: `Only ${profile.documentFolderClients} of ${t} clients (${pct(profile.documentFolderClients)}%) have document folders enabled — the rest have no structured document storage.`,
+      action: profile.documentFolderClients > 0
+        ? 'Set up Document Management to store and share client documents securely against each record.'
+        : 'Flag clients for document storage in their records, then activate Document Management.',
+    },
+    {
+      name: 'Share Registers & Share Certificates',
+      score: Math.min(80, 10 + Math.round(profile.cipcClients / t * 70)),
+      evidence: `${profile.cipcClients} CIPC-registered entities (${cipcPct}%) may require statutory share registers and certificates.`,
+      action: cipcPct > 0
+        ? `Activate Share Registers for your ${profile.cipcClients} registered entities to maintain compliance.`
+        : 'Activate when you onboard Pty Ltd or public company clients.',
+    },
+    {
+      name: 'To-Do List Dashboard',
+      score: Math.min(80, 28 + Math.min(52, Math.round(profile.activeClients / 5))),
+      evidence: `${profile.activeClients} active clients generate significant task volume across the team.`,
+      action: 'Distribute and track client tasks across staff using the To-Do Dashboard to prevent work slipping.',
+    },
+    {
+      name: 'Automated Timekeeping Per Task',
+      score: Math.min(72, 15 + Math.round((profile.payrollClients + profile.auditClients) / t * 65)),
+      evidence: `${profile.payrollClients} payroll and ${profile.auditClients} audit clients are high time-cost engagements that require accurate billing.`,
+      action: 'Enable Automated Timekeeping to auto-log hours per task and improve billing accuracy.',
+    },
+    {
+      name: 'Upselling to Clients',
+      score: Math.min(70, 18 + Math.round(profile.dormantClients / t * 35) + Math.round(profile.activeClients / t * 30)),
+      evidence: `${profile.dormantClients} dormant and ${profile.activeClients} active clients represent cross-sell and reactivation opportunities.`,
+      action: 'Identify under-serviced clients and use the Upselling feature to recommend additional services.',
+    },
+    {
+      name: 'Upskill Your Entire Team',
+      score: 42,
+      evidence: `${profile.totalClients} clients across diverse service types (VAT: ${vatPct}%, PAYE: ${payePct}%) require ongoing staff competence.`,
+      action: 'Run DataGrows in-app training modules and track CPD credits across your entire team.',
+    },
+  ];
 
-Services in use:
-  - Payroll clients: ${p.payrollClients} (${p.totalEmployees} total employees)
-  - Audit clients: ${p.auditClients}
-  - EMP201 submissions: ${p.emp201Clients}
-  - Document folder enabled: ${p.documentFolderClients}
-  - Email clients via DataGrows: ${p.emailClients}
-
-Accounting programs:
-${progLines || '  - (none recorded)'}
-
-Recommend which DataGrows features this accounting firm should prioritise activating.`;
+  return features.sort((a, b) => b.score - a.score);
 }
 
 // ── Handler ────────────────────────────────────────────────────────────────────
@@ -236,14 +210,6 @@ export async function POST(req: NextRequest) {
 
   if (!sessionId) {
     return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'ANTHROPIC_API_KEY is not configured on the server' },
-      { status: 500 },
-    );
   }
 
   const supabase = createServiceClient();
@@ -278,56 +244,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Build portfolio profile (include archived clients in the count — they're still part of the portfolio)
+  // Build portfolio profile (include archived clients — they're still part of the portfolio)
   const records: ClientRecord[] = allRecords.map((r) => r.merged);
   const profile = buildProfile(records, firmName);
 
-  // Call Anthropic
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: profileToText(profile) }],
-    }),
-  });
+  // Score features using rule-based engine (no AI required)
+  const scored = scoreFeatures(profile);
 
-  if (!anthropicRes.ok) {
-    const err = await anthropicRes.json().catch(() => ({})) as { error?: { message?: string } };
-    return NextResponse.json(
-      { error: err.error?.message ?? `Anthropic API error (${anthropicRes.status})` },
-      { status: 500 },
-    );
-  }
+  const urgent_features = scored
+    .filter((f) => f.score >= 60)
+    .map((f) => ({ name: f.name, reason: `${f.evidence} ${f.action}` }));
 
-  const anthropicData = await anthropicRes.json() as {
-    content: Array<{ type: string; text: string }>;
-  };
-
-  const rawText = anthropicData.content.find((c) => c.type === 'text')?.text ?? '';
-  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    return NextResponse.json(
-      { error: 'AI returned an unexpected format. Please try again.' },
-      { status: 500 },
-    );
-  }
-
-  let result: { urgent_features: unknown[]; nice_to_have_features: unknown[] };
-  try {
-    result = JSON.parse(jsonMatch[0]);
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to parse AI response. Please try again.' },
-      { status: 500 },
-    );
-  }
+  const nice_to_have_features = scored
+    .filter((f) => f.score >= 30 && f.score < 60)
+    .map((f) => ({ name: f.name, reason: `${f.evidence} ${f.action}` }));
 
   // Non-blocking log to Supabase
   (async () => {
@@ -336,9 +266,8 @@ export async function POST(req: NextRequest) {
         staff_id: staffId ?? null,
         session_id: sessionId,
         portfolio_profile: profile,
-        urgent_features: result.urgent_features,
-        nice_to_have_features: result.nice_to_have_features,
-        // Legacy columns — nullable after migration
+        urgent_features,
+        nice_to_have_features,
         source_system: null,
         data_types: null,
       });
@@ -347,5 +276,5 @@ export async function POST(req: NextRequest) {
     }
   })();
 
-  return NextResponse.json({ ...result, profile });
+  return NextResponse.json({ urgent_features, nice_to_have_features, profile });
 }

@@ -12,16 +12,42 @@ export type SourceType =
   | 'xero'
   | 'excel'          // generic manual Excel from the firm
   | 'employees'      // the firm's employee/staff list upload
-  | 'company';       // the firm's own company details / service-provider profile
+  | 'company'        // the firm's own company details / service-provider profile
+  | 'contacts'       // standalone contacts directory (contractors, referral partners, etc.)
+  | 'suppliers';     // the accounting firm's own supplier list
+
+/** Source types that go through the DataGrows 86-column pipeline */
+export const CLIENT_SOURCE_TYPES: readonly SourceType[] = [
+  'cipc', 'sars', 'sage', 'xero', 'excel',
+];
+
+/** Source types that are processed into their own tables, not into clusters */
+export const FIRM_SOURCE_TYPES: readonly SourceType[] = [
+  'employees', 'company', 'contacts', 'suppliers',
+];
 
 export const SOURCE_LABELS: Record<SourceType, string> = {
-  cipc: 'CIPC',
-  sars: 'SARS',
-  sage: 'Sage',
-  xero: 'Xero',
-  excel: 'Manual Excel',
+  cipc:      'CIPC',
+  sars:      'SARS',
+  sage:      'Sage',
+  xero:      'Xero',
+  excel:     'Manual Excel',
   employees: 'Employee List',
-  company: 'Company Details',
+  company:   'Company Details',
+  contacts:  'Contacts Directory',
+  suppliers: 'Supplier List',
+};
+
+export const SOURCE_DESCRIPTIONS: Record<SourceType, string> = {
+  cipc:      'Company registration data from CIPC',
+  sars:      'Tax data from SARS eFiling export',
+  sage:      'Client data from Sage accounting software',
+  xero:      'Client data from Xero accounting software',
+  excel:     'Manual Excel spreadsheet (general client data)',
+  employees: 'Firm employee/staff list (HR or payroll export)',
+  company:   'Firm own company details (CIPC cert, invoice template, etc.)',
+  contacts:  'Standalone contacts directory (contractors, referral partners, etc.)',
+  suppliers: 'Firm supplier list',
 };
 
 /**
@@ -35,6 +61,8 @@ export const SOURCE_LABELS: Record<SourceType, string> = {
  *
  * Any field not listed falls back to DEFAULT_PRIORITY.
  */
+// Priority used when merging client records across sources.
+// contacts & suppliers are firm-only and never contribute to client records.
 export const DEFAULT_PRIORITY: readonly SourceType[] = [
   'company',
   'cipc',

@@ -2,15 +2,24 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+
+interface SessionStats {
+  total: number;
+  errors: number;
+  warnings: number;
+  lastProcessed: string | null;
+  hasPendingReExport: boolean;
+}
 
 interface SessionRow {
   id: string;
   status: string;
   created_at: string;
   operator_name: string | null;
+  last_exported_at: string | null;
   firms: { name: string } | { name: string }[] | null;
+  stats?: SessionStats;
 }
 
 function firmName(s: SessionRow): string {
@@ -30,22 +39,78 @@ function statusBadge(status: string): { cls: string; label: string } {
   }
 }
 
+const STAGE_LINKS = [
+  { tab: 'upload',    label: 'Upload' },
+  { tab: 'mapping',   label: 'Process' },
+  { tab: 'review',    label: 'Review' },
+  { tab: 'dashboard', label: 'Dashboard' },
+  { tab: 'export',    label: 'Export' },
+] as const;
+
 export default function HomePage() {
   const supabase = createClient();
-  const router = useRouter();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('sessions')
-      .select('id, status, created_at, operator_name, firms(name)')
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        setSessions((data as SessionRow[]) ?? []);
-        setLoading(false);
-      });
+    async function load() {
+      // Fetch sessions
+      const { data: sessionData } = await supabase
+        .from('sessions')
+        .select('id, status, created_at, operator_name, last_exported_at, firms(name)')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      const rows = (sessionData as SessionRow[]) ?? [];
+      if (rows.length === 0) { setSessions([]); setLoading(false); return; }
+
+      // Fetch cluster counts and last processed date per session in one query
+      const sessionIds = rows.map((r) => r.id);
+      const { data: clusterData } = await supabase
+        .from('clusters')
+        .select('session_id, merged, archived, created_at')
+        .in('session_id', sessionIds);
+
+      // Fetch post-export edits — check if any edits exist after last_exported_at per session
+      const exportedSessions = rows.filter((r) => r.last_exported_at);
+      let pendingReExportIds = new Set<string>();
+      if (exportedSessions.length > 0) {
+        // For each exported session, check if edits exist after last_exported_at
+        for (const s of exportedSessions) {
+          const { count } = await supabase
+            .from('edits')
+            .select('id', { count: 'exact', head: true })
+            .gt('created_at', s.last_exported_at!);
+          if ((count ?? 0) > 0) pendingReExportIds.add(s.id);
+        }
+      }
+
+      // Compute per-session stats from cluster data
+      const statsMap: Record<string, SessionStats> = {};
+      for (const s of rows) {
+        const sessionClusters = (clusterData ?? []).filter((c) => c.session_id === s.id);
+        const dates = sessionClusters.map((c) => c.created_at).filter(Boolean).sort().reverse();
+        let errors = 0;
+        let warnings = 0;
+        for (const c of sessionClusters) {
+          if (c.archived) continue;
+          // Simple validation check from merged data
+          const merged = c.merged as Record<string, unknown>;
+          if (!merged.client_name || !merged.entity_type || !merged.year_end) errors++;
+        }
+        statsMap[s.id] = {
+          total: sessionClusters.filter((c) => !c.archived).length,
+          errors,
+          warnings,
+          lastProcessed: dates[0] ?? null,
+          hasPendingReExport: pendingReExportIds.has(s.id),
+        };
+      }
+
+      setSessions(rows.map((r) => ({ ...r, stats: statsMap[r.id] })));
+      setLoading(false);
+    }
+    void load();
   }, [supabase]);
 
   return (
@@ -54,82 +119,89 @@ export default function HomePage() {
         <div>
           <h2 className="text-2xl font-semibold text-navy-800">Onboarding Sessions</h2>
           <p className="text-sm text-navy-500 mt-1">
-            One session per firm. Produces a single DataGrows master Excel.
+            One session per firm. Click a stage link to jump directly into any step.
           </p>
         </div>
-        <Link
-          href="/sessions/new"
-          className="btn btn-primary flex-shrink-0"
-          data-tour="btn-new-session"
-        >
+        <Link href="/sessions/new" className="btn btn-primary flex-shrink-0" data-tour="btn-new-session">
           New Session
         </Link>
       </div>
 
-      <div className="card overflow-hidden" data-tour="sessions-table">
-        {loading ? (
-          <p className="px-6 py-10 text-sm text-navy-500 text-center">Loading…</p>
-        ) : sessions.length === 0 ? (
-          <div className="p-12 text-center text-navy-500">
-            <p className="mb-4">No sessions yet.</p>
-            <Link href="/sessions/new" className="btn btn-primary">
-              Create your first session
-            </Link>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-navy-50 text-navy-700 text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">Firm</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">Operator</th>
-                <th className="px-4 py-3 font-medium hidden md:table-cell">Created</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-navy-100">
-              {sessions.map((s) => {
-                const name = firmName(s);
-                const { cls, label } = statusBadge(s.status);
-                return (
-                  <tr
-                    key={s.id}
-                    onClick={() => router.push(`/sessions/${s.id}`)}
-                    className="hover:bg-navy-50 cursor-pointer active:bg-navy-100 transition-colors"
-                  >
-                    {/* Firm name — primary tap target on mobile */}
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-navy-800 group-hover:text-teal-700">
-                        {name}
+      {loading ? (
+        <p className="text-sm text-navy-500 text-center py-10">Loading…</p>
+      ) : sessions.length === 0 ? (
+        <div className="card p-12 text-center text-navy-500">
+          <p className="mb-4">No sessions yet.</p>
+          <Link href="/sessions/new" className="btn btn-primary">Create your first session</Link>
+        </div>
+      ) : (
+        <div className="space-y-3" data-tour="sessions-table">
+          {sessions.map((s) => {
+            const name = firmName(s);
+            const { cls, label } = statusBadge(s.status);
+            const stats = s.stats;
+            const date = new Date(s.created_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+            const lastProc = stats?.lastProcessed
+              ? new Date(stats.lastProcessed).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
+              : null;
+
+            return (
+              <div key={s.id} className="card p-4 sm:p-5 hover:shadow-md transition-shadow">
+                {/* Top row: firm name + status + date */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-navy-800 text-base truncate">{name}</h3>
+                    {s.operator_name && (
+                      <p className="text-xs text-navy-400 mt-0.5">Operator: {s.operator_name}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`badge ${cls}`}>{label}</span>
+                    <span className="text-xs text-navy-400 hidden sm:block">{date}</span>
+                  </div>
+                </div>
+
+                {/* Mini-stats */}
+                {stats && stats.total > 0 && (
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+                    <span className="text-xs text-navy-600 font-medium">{stats.total} clients</span>
+                    {stats.errors > 0 && (
+                      <span className="text-xs text-rose-600 font-medium">· {stats.errors} errors</span>
+                    )}
+                    {stats.warnings > 0 && (
+                      <span className="text-xs text-amber-600">· {stats.warnings} warnings</span>
+                    )}
+                    {lastProc && (
+                      <span className="text-xs text-navy-400">· Last processed {lastProc}</span>
+                    )}
+                    {/* Re-export indicator — soft indigo, non-alarming */}
+                    {stats.hasPendingReExport && (
+                      <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                        ◷ Changes since last export
                       </span>
-                      {/* Operator shown as subtitle on mobile only */}
-                      {s.operator_name && (
-                        <span className="block text-xs text-navy-400 mt-0.5 sm:hidden">
-                          {s.operator_name}
-                        </span>
-                      )}
-                    </td>
+                    )}
+                  </div>
+                )}
 
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      <span className={`badge ${cls}`}>{label}</span>
-                    </td>
-
-                    {/* Operator — hidden on mobile, subtitle handles it */}
-                    <td className="px-4 py-3 text-navy-500 hidden sm:table-cell">
-                      {s.operator_name ?? '—'}
-                    </td>
-
-                    {/* Created date — hidden on mobile + tablet */}
-                    <td className="px-4 py-3 text-navy-500 hidden md:table-cell">
-                      {new Date(s.created_at).toLocaleDateString('en-ZA')}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                {/* Stage jump links */}
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-xs text-navy-400 mr-1">Go to:</span>
+                  {STAGE_LINKS.map(({ tab, label: stageLabel }) => (
+                    <Link
+                      key={tab}
+                      href={`/sessions/${s.id}?tab=${tab}`}
+                      className="text-xs px-2.5 py-1 rounded-full border border-navy-200 text-navy-600 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {stageLabel}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -11,7 +11,7 @@
  * Manual overrides are hidden by default but can be expanded per file.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DATAGROWS_FIELDS } from '@/lib/schema/datagrows';
 import { normalizeRecord } from '@/lib/normalizer';
@@ -34,6 +34,7 @@ type Phase =
   | 'mapping'
   | 'pipeline'
   | 'done'
+  | 'already_done'
   | 'error';
 
 interface FileMappingState {
@@ -51,7 +52,7 @@ export function MappingStep({
   sessionId: string;
   onComplete?: () => void;
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [phase, setPhase] = useState<Phase>('idle');
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('Initialising…');
@@ -73,6 +74,20 @@ export function MappingStep({
     setStatusText('Loading uploaded files…');
 
     try {
+      // Check if pipeline was already run for this session
+      const { data: existingClusters } = await supabase
+        .from('clusters')
+        .select('id')
+        .eq('session_id', sessionId)
+        .limit(1);
+
+      if (existingClusters && existingClusters.length > 0) {
+        setPhase('already_done');
+        setProgress(100);
+        setStatusText('Pipeline already complete.');
+        return;
+      }
+
       const { data } = await supabase
         .from('uploads')
         .select('id, file_name, source_type, detected_columns, column_mapping')
@@ -227,17 +242,20 @@ export function MappingStep({
         .eq('id', sessionId);
 
       setProgress(100);
-      setStatusText('Done — navigating to Review…');
+      setStatusText('Done — pipeline complete.');
       setPhase('done');
       appendLog('Pipeline complete.');
-
-      setTimeout(() => { onComplete?.(); }, 800);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMsg(msg);
       setPhase('error');
     }
-  }, [sessionId, supabase, onComplete]);
+  // onComplete is intentionally excluded from deps — it's an inline arrow
+  // function whose reference changes every parent render, which would cause
+  // run() to be re-created and the effect to fire unnecessarily.
+  // It is only called by the explicit "Go to Review →" buttons, never inside run().
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, supabase]);
 
   useEffect(() => { run(); }, [run]);
 
@@ -291,7 +309,7 @@ export function MappingStep({
               No manual input needed.
             </p>
           </div>
-          {phase === 'done' && (
+          {(phase === 'done' || phase === 'already_done') && (
             <span className="inline-flex items-center gap-1 text-sm font-medium text-green-700 bg-green-50 px-3 py-1 rounded-full">
               ✓ Complete
             </span>
@@ -320,6 +338,43 @@ export function MappingStep({
               onClick={() => { hasRun.current = false; run(); }}
             >
               Retry
+            </button>
+          </div>
+        )}
+
+        {phase === 'already_done' && (
+          <div className="mt-4 p-3 bg-teal-50 border border-teal-200 rounded text-sm text-teal-800">
+            This session has already been processed. You can review the results or re-run the pipeline to reprocess all records.
+            <div className="mt-3 flex gap-2">
+              <button
+                className="btn btn-primary"
+                onClick={() => onComplete?.()}
+              >
+                Go to Review →
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { hasRun.current = false; setPhase('idle'); run(); }}
+              >
+                Re-run pipeline
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(phase === 'done') && (
+          <div className="mt-4 flex gap-2">
+            <button
+              className="btn btn-primary"
+              onClick={() => onComplete?.()}
+            >
+              Go to Review →
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => { hasRun.current = false; setPhase('idle'); run(); }}
+            >
+              Re-run pipeline
             </button>
           </div>
         )}

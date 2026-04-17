@@ -15,6 +15,8 @@ const SOURCE_SUGGESTIONS: string[] = [
   'Xero',
   'Employee List',
   'Manual Excel',
+  'Contacts Directory',
+  'Supplier List',
 ];
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -161,7 +163,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
       const signData = await signRes.json() as { signedUrl?: string; token?: string; path?: string; error?: string };
       if (!signRes.ok) throw new Error(signData.error ?? 'Failed to get upload URL');
 
-      const { signedUrl, token, path: storagePath } = signData as { signedUrl: string; token: string; path: string };
+      const { token, path: storagePath } = signData as { signedUrl: string; token: string; path: string };
 
       patchItem(item.id, { progress: 20 });
 
