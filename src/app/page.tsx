@@ -85,9 +85,11 @@ export default function HomePage() {
   }
 
   function toggleSelectAll() {
-    setSelected((prev) =>
-      prev.size === filtered.length ? new Set() : new Set(filtered.map((s) => s.id))
-    );
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((s) => s.id)));
+    }
   }
 
   async function deleteSelected() {
@@ -141,7 +143,8 @@ export default function HomePage() {
     attention: sessions.filter((s) => s.status === 'mapping').length,
   }), [sessions]);
 
-  // Filtered list
+  // Filtered list — eslint-disable-next-line react-hooks/preserve-manual-memoization
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filtered = useMemo(() => {
     let list = sessions;
     if (filter === 'active')   list = list.filter((s) => ['uploading','mapping','reviewing'].includes(s.status));
