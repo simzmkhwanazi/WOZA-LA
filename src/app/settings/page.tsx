@@ -68,12 +68,6 @@ export default function SettingsPage() {
               DataGrows Feature Catalogue →
             </a>
           </li>
-          <li>
-            <a href="https://supabase.com/dashboard/project/ckzbpxdzounicwhmtdup" target="_blank" rel="noopener noreferrer"
-              className="text-teal font-medium hover:underline">
-              Supabase Dashboard →
-            </a>
-          </li>
         </ul>
       </div>
     </div>

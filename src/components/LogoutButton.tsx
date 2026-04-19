@@ -23,7 +23,7 @@ export function LogoutButton() {
       disabled={loading}
       className="nav-link text-rose-500 hover:text-rose-600"
     >
-      {loading ? 'Signing out…' : 'Sign out'}
+      {loading ? 'Logging out…' : 'Log out'}
     </button>
   );
 }
