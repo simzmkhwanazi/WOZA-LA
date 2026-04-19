@@ -78,7 +78,7 @@ function StatusBadge({ status }: { status: UploadStatus }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function UploadStep({ sessionId }: { sessionId: string }) {
+export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProceed?: () => void }) {
   const supabase = createClient();
 
   // Queue of items to upload
@@ -358,6 +358,22 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
           <p className="text-sm text-emerald-600 mt-3">
             All files uploaded successfully.
           </p>
+        )}
+
+        {/* Proceed to mapping once at least one file is uploaded */}
+        {uploaded.length > 0 && onProceed && (
+          <div className="mt-5 pt-5 border-t border-gray-100 flex items-center justify-between">
+            <p className="text-sm text-navy-500">
+              {uploaded.length} file{uploaded.length !== 1 ? 's' : ''} ready — run the mapping pipeline to process records.
+            </p>
+            <button
+              onClick={onProceed}
+              disabled={running}
+              className="btn btn-primary text-sm"
+            >
+              Process &amp; Review →
+            </button>
+          </div>
         )}
       </div>
 

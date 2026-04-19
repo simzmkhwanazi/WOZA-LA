@@ -281,7 +281,7 @@ export default function SessionPage() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-6 py-6">
-            {subTab === 'upload' && <UploadStep sessionId={sessionId} />}
+            {subTab === 'upload' && <UploadStep sessionId={sessionId} onProceed={() => goToTab('mapping')} />}
             {subTab === 'mapping' && (
               <MappingStep
                 sessionId={sessionId}
