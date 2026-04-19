@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await authClient.auth.getUser();
   const operatorName =
     operatorOverride?.trim() ||
-    (user?.user_metadata?.full_name as string | undefined) ??
-    user?.email ??
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email ||
     null;
 
   const supabase = createServiceClient();
