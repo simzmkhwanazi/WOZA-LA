@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Woza La — Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Poppins', sans-serif; background: #F7F8FA; color: #2D3748; min-height: 100vh; }
+
+  :root {
+    --teal: #2BBCBC;
+    --teal-dark: #229E9E;
+    --teal-light: #E6F7F7;
+    --teal-50: #F0FBFB;
+    --navy: #2D3748;
+    --navy-700: #1A202C;
+    --navy-600: #4A5568;
+    --navy-400: #A0AEC0;
+    --navy-200: #E2E8F0;
+    --white: #FFFFFF;
+    --bg: #F7F8FA;
+    --red: #E53E3E;
+    --red-light: #FFF5F5;
+    --amber: #D69E2E;
+    --amber-light: #FFFFF0;
+    --green: #38A169;
+    --green-light: #F0FFF4;
+    --blue: #3182CE;
+    --blue-light: #EBF8FF;
+    --purple: #805AD5;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-logo { font-weight: 700; font-size: 20px; color: var(--teal); }
+  .header-tagline { font-size: 13px; color: var(--teal-dark); opacity: 0.7; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--navy-600);
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+  }
+
+  /* ── Page Layout ── */
+  .page { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+
+  /* ── Hero / Welcome ── */
+  .welcome {
+    margin-bottom: 32px;
+  }
+  .welcome h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .welcome p {
+    font-size: 14px;
+    color: var(--navy-600);
+  }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    flex: 1;
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .stat-num { font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 12px; color: var(--navy-400); margin-top: 2px; }
+  .stat-teal .stat-num { color: var(--teal); }
+  .stat-amber .stat-num { color: var(--amber); }
+  .stat-green .stat-num { color: var(--green); }
+  .stat-navy .stat-num { color: var(--navy); }
+
+  /* ── Action Bar ── */
+  .action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .action-bar h2 { font-size: 17px; font-weight: 600; color: var(--navy); }
+  .btn-new {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-new:hover { background: var(--teal-dark); }
+  .btn-new .plus { font-size: 18px; font-weight: 400; }
+
+  /* ── Search / Filter ── */
+  .filter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .search-box {
+    flex: 1;
+    padding: 9px 14px 9px 36px;
+    border: 1px solid var(--navy-200);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--navy);
+    background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23A0AEC0' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 12px center;
+  }
+  .search-box:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-light); }
+  .filter-pill {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--navy-200);
+    background: var(--white);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--navy-600);
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.15s;
+  }
+  .filter-pill:hover { border-color: var(--teal); color: var(--teal); }
+  .filter-pill.active { background: var(--teal); color: white; border-color: var(--teal); }
+
+  /* ── Sessions Table ── */
+  .sessions-table {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .sessions-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--navy-400);
+    background: var(--bg);
+    border-bottom: 1px solid var(--navy-200);
+  }
+  .sessions-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #F0F0F0;
+    vertical-align: middle;
+  }
+  .sessions-table tbody tr {
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .sessions-table tbody tr:hover { background: var(--teal-50); }
+  .sessions-table tbody tr:last-child td { border-bottom: none; }
+
+  .firm-name { font-weight: 600; color: var(--navy); }
+  .firm-name-sub { font-size: 11px; color: var(--navy-400); margin-top: 1px; }
+
+  .session-id { font-size: 11px; color: var(--navy-400); font-family: monospace; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
+  .sb-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .sb-reviewing { background: var(--blue-light); color: var(--blue); }
+  .sb-reviewing .sb-dot { background: var(--blue); }
+  .sb-exported { background: var(--green-light); color: var(--green); }
+  .sb-exported .sb-dot { background: var(--green); }
+  .sb-uploading { background: var(--amber-light); color: var(--amber); }
+  .sb-uploading .sb-dot { background: var(--amber); }
+  .sb-mapping { background: #FAF5FF; color: var(--purple); }
+  .sb-mapping .sb-dot { background: var(--purple); }
+  .sb-archived { background: #EDF2F7; color: var(--navy-400); }
+  .sb-archived .sb-dot { background: var(--navy-400); }
+
+  .operator { font-size: 12px; color: var(--navy-600); }
+  .clients-count { font-size: 12px; color: var(--navy-600); }
+  .date { font-size: 12px; color: var(--navy-400); }
+
+  /* ── Notes column ── */
+  .notes-preview {
+    font-size: 11px;
+    color: var(--navy-400);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-style: italic;
+  }
+
+  /* ── New Session Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 32px;
+    width: 480px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    transform: translateY(20px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .modal .modal-sub {
+    font-size: 13px;
+    color: var(--navy-600);
+    margin-bottom: 24px;
+  }
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--navy-200);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--navy);
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 2px var(--teal-light);
+  }
+  .form-group .hint {
+    font-size: 11px;
+    color: var(--navy-400);
+    margin-top: 4px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .btn-cancel {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--navy-200);
+    background: var(--white);
+    color: var(--navy-600);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+  }
+  .btn-cancel:hover { background: var(--bg); }
+  .btn-create {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    background: var(--teal);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    transition: background 0.15s;
+  }
+  .btn-create:hover { background: var(--teal-dark); }
+</style>
+</head>
+<body>
+
+<!-- ═══ Header ═══ -->
+<header class="header">
+  <div class="header-left">
+    <span class="header-logo">Woza La</span>
+    <span class="header-tagline">· Get In Stay In</span>
+  </div>
+  <div class="header-right">
+    <div class="header-user">
+      <div class="avatar">SM</div>
+      <span>Simz</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ Page Content ═══ -->
+<div class="page">
+
+  <!-- Welcome -->
+  <div class="welcome">
+    <h1>Onboarding Sessions</h1>
+    <p>Import, consolidate, and export client data for DataGrows onboarding.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card stat-navy">
+      <div class="stat-num">12</div>
+      <div class="stat-label">Total sessions</div>
+    </div>
+    <div class="stat-card stat-teal">
+      <div class="stat-num">3</div>
+      <div class="stat-label">In progress</div>
+    </div>
+    <div class="stat-card stat-green">
+      <div class="stat-num">8</div>
+      <div class="stat-label">Exported</div>
+    </div>
+    <div class="stat-card stat-amber">
+      <div class="stat-num">1</div>
+      <div class="stat-label">Needs attention</div>
+    </div>
+  </div>
+
+  <!-- Action Bar -->
+  <div class="action-bar">
+    <h2>All Sessions</h2>
+    <button class="btn-new" onclick="openModal()">
+      <span class="plus">+</span> New Session
+    </button>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-row">
+    <input class="search-box" type="text" placeholder="Search firms or operators..." />
+    <button class="filter-pill active">All</button>
+    <button class="filter-pill" onclick="this.classList.toggle('active')">In Progress</button>
+    <button class="filter-pill" onclick="this.classList.toggle('active')">Exported</button>
+    <button class="filter-pill" onclick="this.classList.toggle('active')">Archived</button>
+  </div>
+
+  <!-- Sessions Table -->
+  <table class="sessions-table">
+    <thead>
+      <tr>
+        <th>Firm</th>
+        <th>Status</th>
+        <th>Clients</th>
+        <th>Operator</th>
+        <th>Last Updated</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr onclick="window.location='02-import-step.html'">
+        <td>
+          <div class="firm-name">Rich Accountants</div>
+          <div class="firm-name-sub">#0042</div>
+        </td>
+        <td><span class="status-badge sb-reviewing"><span class="sb-dot"></span>Reviewing</span></td>
+        <td class="clients-count">20</td>
+        <td class="operator">Simz</td>
+        <td class="date">19 Apr 2026</td>
+        <td><span class="notes-preview">Waiting on SARS eFiling export</span></td>
+      </tr>
+      <tr>
+        <td>
+          <div class="firm-name">Fast Accounting</div>
+          <div class="firm-name-sub">#0041</div>
+        </td>
+        <td><span class="status-badge sb-exported"><span class="sb-dot"></span>Exported</span></td>
+        <td class="clients-count">20</td>
+        <td class="operator">David</td>
+        <td class="date">17 Apr 2026</td>
+        <td><span class="notes-preview">Clean export, no issues</span></td>
+      </tr>
+      <tr>
+        <td>
+          <div class="firm-name">Theron & Associates</div>
+          <div class="firm-name-sub">#0040</div>
+        </td>
+        <td><span class="status-badge sb-reviewing"><span class="sb-dot"></span>Reviewing</span></td>
+        <td class="clients-count">45</td>
+        <td class="operator">Buhle</td>
+        <td class="date">16 Apr 2026</td>
+        <td><span class="notes-preview">Large firm, 3 Sage exports pending</span></td>
+      </tr>
+      <tr>
+        <td>
+          <div class="firm-name">Mbeki Financial Services</div>
+          <div class="firm-name-sub">#0039</div>
+        </td>
+        <td><span class="status-badge sb-uploading"><span class="sb-dot"></span>Importing</span></td>
+        <td class="clients-count">8</td>
+        <td class="operator">Mariska</td>
+        <td class="date">15 Apr 2026</td>
+        <td><span class="notes-preview">Only SARS data received so far</span></td>
+      </tr>
+      <tr>
+        <td>
+          <div class="firm-name">Venter Boekhouers</div>
+          <div class="firm-name-sub">#0038</div>
+        </td>
+        <td><span class="status-badge sb-exported"><span class="sb-dot"></span>Exported</span></td>
+        <td class="clients-count">32</td>
+        <td class="operator">Simz</td>
+        <td class="date">12 Apr 2026</td>
+        <td><span class="notes-preview"></span></td>
+      </tr>
+      <tr>
+        <td>
+          <div class="firm-name">Naidoo & Partners</div>
+          <div class="firm-name-sub">#0037</div>
+        </td>
+        <td><span class="status-badge sb-exported"><span class="sb-dot"></span>Exported</span></td>
+        <td class="clients-count">18</td>
+        <td class="operator">David</td>
+        <td class="date">10 Apr 2026</td>
+        <td><span class="notes-preview">2nd session — re-exported after fix</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ═══ New Session Modal ═══ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>New Onboarding Session</h2>
+    <p class="modal-sub">Create a session to start importing a firm's client data.</p>
+
+    <div class="form-group">
+      <label>Firm Name</label>
+      <input type="text" placeholder="e.g. Rich Accountants" id="firmInput" />
+      <div class="hint">The accounting or audit firm you're onboarding.</div>
+    </div>
+
+    <div class="form-group">
+      <label>Operator</label>
+      <select>
+        <option value="" disabled>Select operator</option>
+        <option selected>Simz</option>
+        <option>David</option>
+        <option>Mariska</option>
+        <option>Buhle</option>
+      </select>
+      <div class="hint">Who's running this onboarding session.</div>
+    </div>
+
+    <div class="form-group">
+      <label>Notes <span style="font-weight:400;color:var(--navy-400);">(optional)</span></label>
+      <input type="text" placeholder="e.g. Firm sent Sage + SARS exports, waiting on CIPC" />
+      <div class="hint">Any context for handoff or reference.</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-create" onclick="closeModal()">Create Session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+    setTimeout(() => document.getElementById('firmInput').focus(), 200);
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+  });
+</script>
+
+</body>
+</html>

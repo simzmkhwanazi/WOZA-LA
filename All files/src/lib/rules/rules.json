@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "description": "Woza La services rules engine. When a client record is normalised, each rule is checked in order. Matching rules set default values on the record. Clerks can override any default in the review UI.",
+  "rules": [
+    {
+      "id": "pty-ltd-defaults",
+      "when": { "entity_type": ["PTY LTD"] },
+      "set": {
+        "cipc_annual_return": true,
+        "provisional_tax": true,
+        "income_tax": true,
+        "financials": true
+      }
+    },
+    {
+      "id": "cc-defaults",
+      "when": { "entity_type": ["CLOSE CORPORATION"] },
+      "set": {
+        "cipc_annual_return": true,
+        "provisional_tax": true,
+        "income_tax": true,
+        "financials": true
+      }
+    },
+    {
+      "id": "npo-defaults",
+      "when": { "entity_type": ["NON-PROFIT"] },
+      "set": {
+        "cipc_annual_return": true,
+        "financials": true
+      }
+    },
+    {
+      "id": "sole-prop-defaults",
+      "when": { "entity_type": ["SOLE PROP"] },
+      "set": {
+        "income_tax": true,
+        "provisional_tax": true,
+        "cipc_annual_return": false
+      }
+    },
+    {
+      "id": "individual-defaults",
+      "when": { "entity_type": ["INDIVIDUAL"] },
+      "set": {
+        "income_tax": true,
+        "cipc_annual_return": false,
+        "provisional_tax": false
+      }
+    },
+    {
+      "id": "trust-defaults",
+      "when": { "entity_type": ["TRUST"] },
+      "set": {
+        "income_tax": true,
+        "provisional_tax": true,
+        "cipc_annual_return": false
+      }
+    },
+    {
+      "id": "turnover-tax-exclusive",
+      "when": { "turnover_tax": [true] },
+      "set": {
+        "income_tax": false,
+        "provisional_tax": false
+      }
+    },
+    {
+      "id": "has-vat-number",
+      "when": { "has_value": "vat_nr" },
+      "set": {
+        "vat": true
+      }
+    },
+    {
+      "id": "has-paye-number",
+      "when": { "has_value": "paye_nr" },
+      "set": {
+        "payroll": true,
+        "emp201": true,
+        "emp501s": true
+      }
+    },
+    {
+      "id": "has-uif-reg",
+      "when": { "has_value": "uif_reg" },
+      "set": {
+        "uif": true
+      }
+    },
+    {
+      "id": "has-workmans-ref",
+      "when": { "has_value": "workmans_ref_nr" },
+      "set": {
+        "workmans": true
+      }
+    }
+  ]
+}

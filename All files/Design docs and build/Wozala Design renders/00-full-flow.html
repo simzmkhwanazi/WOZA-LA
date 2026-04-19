@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Woza La v2 — Screen Renders</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Poppins', sans-serif; background: #F7F8FA; color: #2D3748; min-height: 100vh; }
+
+  :root {
+    --teal: #2BBCBC;
+    --teal-dark: #229E9E;
+    --teal-light: #E6F7F7;
+    --navy: #2D3748;
+    --navy-600: #4A5568;
+    --navy-400: #A0AEC0;
+    --navy-200: #E2E8F0;
+    --white: #FFFFFF;
+    --bg: #F7F8FA;
+  }
+
+  .header {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-logo { font-weight: 700; font-size: 24px; color: var(--teal); }
+  .header-tagline { font-size: 13px; color: var(--teal-dark); opacity: 0.7; }
+  .header-sub { font-size: 13px; color: var(--navy-600); }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 32px;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+  .hero p {
+    font-size: 16px;
+    color: var(--navy-600);
+    margin-bottom: 28px;
+  }
+
+  .flow-diagram {
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 48px;
+  }
+
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .flow-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--teal-light);
+    border: 2px solid var(--teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--teal-dark);
+  }
+  .flow-step p {
+    font-size: 12px;
+    color: var(--navy-400);
+    font-weight: 500;
+  }
+  .flow-arrow {
+    font-size: 28px;
+    color: var(--navy-200);
+    user-select: none;
+  }
+
+  .renders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .render-card {
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: all 0.3s;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+  }
+  .render-card:hover {
+    border-color: var(--teal);
+    box-shadow: 0 8px 24px rgba(43, 188, 188, 0.12);
+    transform: translateY(-2px);
+  }
+
+  .render-preview {
+    background: linear-gradient(135deg, var(--teal-light) 0%, var(--bg) 100%);
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    border-bottom: 1px solid var(--navy-200);
+  }
+
+  .render-content {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .render-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .render-desc {
+    font-size: 13px;
+    color: var(--navy-600);
+    line-height: 1.5;
+    flex: 1;
+    margin-bottom: 12px;
+  }
+  .render-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--teal);
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .render-link:hover { text-decoration: underline; }
+
+  .footer {
+    text-align: center;
+    padding: 32px 0;
+    border-top: 1px solid var(--navy-200);
+    color: var(--navy-400);
+    font-size: 12px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+  .badge-gate { background: #E6F7F7; color: var(--teal-dark); }
+  .badge-step { background: #EDF2F7; color: var(--navy-600); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">Woza La</div>
+    <div>
+      <div class="header-tagline">· Get In Stay In</div>
+      <div class="header-sub">Screen Renders Library</div>
+    </div>
+  </div>
+</header>
+
+<!-- Page -->
+<div class="page">
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Woza La v2 — Screen Renders</h1>
+    <p>Interactive HTML mockups showing the complete onboarding pipeline with real UI styling (Poppins font, teal #2BBCBC, navy #2D3748)</p>
+  </div>
+
+  <!-- Flow Diagram -->
+  <div class="flow-diagram">
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-circle">
+          1<br>Home
+        </div>
+        <p>Sessions List</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-circle">
+          2<br>Import
+        </div>
+        <p>Upload Files</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-circle">
+          3<br>Review
+        </div>
+        <p>Mapping + Dedup</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-circle">
+          4<br>Export
+        </div>
+        <p>Download Data</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Renders Grid -->
+  <div class="renders-grid">
+
+    <!-- 01 Home Page -->
+    <a href="01-home-page.html" class="render-card">
+      <div class="render-preview">🏠</div>
+      <div class="render-content">
+        <div class="render-title">Home Page</div>
+        <div class="render-desc">Sessions list showing all onboarding projects with status, client count, operator, and notes. Includes modal for creating new sessions.</div>
+        <div class="render-link">View Render →</div>
+        <span class="badge badge-step">Entry Point</span>
+      </div>
+    </a>
+
+    <!-- 02 Import Step -->
+    <a href="02-import-step.html" class="render-card">
+      <div class="render-preview">📥</div>
+      <div class="render-content">
+        <div class="render-title">Import Step</div>
+        <div class="render-desc">Dropzone for uploading files. Source type pills (CIPC, SARS, Sage, Xero, Excel, Employees). File cards showing parsed files with row counts. Firm staff table with role assignment.</div>
+        <div class="render-link">View Render →</div>
+        <span class="badge badge-step">Step 1</span>
+      </div>
+    </a>
+
+    <!-- 03 Mapping Confirmation -->
+    <a href="03-mapping-confirmation.html" class="render-card">
+      <div class="render-preview">🗺️</div>
+      <div class="render-content">
+        <div class="render-title">Mapping Confirmation</div>
+        <div class="render-desc">Column mapping gate. Tables grouped by file source showing source columns, mapped targets, and confidence levels (High/Medium/Low). Exclude file checkboxes. Mandatory confirm button.</div>
+        <div class="render-link">View Render →</div>
+        <span class="badge badge-gate">Gate</span>
+      </div>
+    </a>
+
+    <!-- 04 Dedup Confirmation -->
+    <a href="04-dedup-confirmation.html" class="render-card">
+      <div class="render-preview">🔀</div>
+      <div class="render-content">
+        <div class="render-title">Dedup Confirmation</div>
+        <div class="render-desc">3 duplicate pairs with match percentages. Auto-merged section showing entries merged by system. Bulk Merge All / Keep All Separate actions. Per-pair merge/separate buttons.</div>
+        <div class="render-link">View Render →</div>
+        <span class="badge badge-gate">Gate</span>
+      </div>
+    </a>
+
+    <!-- 05 Review Table -->
+    <a href="05-review-table.html" class="render-card">
+      <div class="render-preview">📋</div>
+      <div class="render-content">
+        <div class="render-title">Review Table</div>
+        <div class="render-desc">Client list sidebar with search & status filters. Main editor panel for selected client showing 86 fields grouped by category (Identity, Tax, Contact). Conflict dots on fields. Bulk action bar for multi-select.</div>
+        <div class="render-link">View Render →</div>
+        <span class="badge badge-step">Step 2</span>
+      </div>
+    </a>
+
+    <!-- 06 Export Step -->
+    <a href="06-export-step.html" class="render-card">
+      <div class="render-preview">📊</div>
+      <div class="render-content">
+        <div class="render-title">Export Step</div>
+        <div class="render-desc">Summary cards (Total, Ready, Blocked, Skipped, Archived). Large download button. Export options (strip instructions, include archived). Version history table with download links. Expandable archived clients list.</div>
+        <div class="render-link">View Render →</div>
+        <span class="badge badge-step">Step 3</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>Woza La v2 Render Library — Interactive HTML mockups for DataGrows onboarding pipeline</p>
+    <p style="margin-top: 12px; color: var(--navy-400);">All files are self-contained, single-page HTML with no external dependencies</p>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ──────────────────────────────────────────────────────────── */
+html, body {
+  font-family: 'Poppins', system-ui, sans-serif;
+  background: #F4F6F7;
+  color: #2D3748;
+}
+
+/* ── Navigation link (mirrors DataGrows: plain + teal underline) ─── */
+@layer components {
+  .nav-link {
+    @apply relative px-3 py-1.5 text-sm font-medium text-navy-600
+           hover:text-teal transition-colors;
+  }
+  .nav-link.active::after {
+    content: '';
+    @apply absolute bottom-0 left-3 right-3 h-0.5 bg-teal rounded-full;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2
+           text-sm font-medium transition-all duration-150 select-none;
+  }
+  .btn-primary {
+    @apply bg-teal text-white hover:bg-teal-600 active:bg-teal-700
+           disabled:opacity-40 disabled:cursor-not-allowed shadow-sm;
+  }
+  .btn-secondary {
+    @apply bg-white border border-gray-200 text-navy-600
+           hover:bg-gray-50 hover:border-gray-300
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  /* LOGIN-style outlined button (matches DataGrows header CTA) */
+  .btn-outline {
+    @apply border border-teal text-teal bg-transparent
+           hover:bg-teal hover:text-white transition-colors rounded-lg
+           px-4 py-1.5 text-sm font-semibold;
+  }
+  .btn-ghost {
+    @apply text-navy-500 hover:text-teal hover:bg-teal-50 rounded-lg;
+  }
+
+  /* ── Inputs ── */
+  .input {
+    @apply block w-full rounded-lg border border-gray-200 bg-white px-3 py-2
+           text-sm placeholder:text-gray-400
+           focus:outline-none focus:ring-2 focus:ring-teal/25 focus:border-teal
+           transition-colors;
+  }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-ok    { @apply bg-teal-50  text-teal-700  ring-1 ring-teal-200/60; }
+  .badge-warn  { @apply bg-amber-50 text-amber-700 ring-1 ring-amber-200/60; }
+  .badge-error { @apply bg-rose-50  text-rose-700  ring-1 ring-rose-200/60; }
+  .badge-muted { @apply bg-gray-100 text-gray-600  ring-1 ring-gray-200/60; }
+}

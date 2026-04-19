@@ -6,11 +6,10 @@
  *     - Individuals/Sole Props: ID Number (digits only)
  *     - Trusts/Estates: Trust Deed Number
  *
- *   Pass 2 — Name-bridge (SUGGESTIONS ONLY):
+ *   Pass 2 — Name-bridge:
  *     - For records with NO primary key, try fuzzy-matching against the
- *       NAMES of records that DO have a primary key. Close matches are
- *       returned as PendingNameMatch — NOT auto-merged. The operator must
- *       confirm each merge via DedupConfirmation before it takes effect.
+ *       NAMES of records that DO have a primary key. If a close match is
+ *       found in another source, borrow that primary key and merge.
  *
  *   Pass 3 — Archive orphans:
  *     - Anything still without a primary key gets archived.
@@ -23,7 +22,7 @@ import {
   type ClientRecord,
 } from '../schema/datagrows';
 import {
-  registrationMatchKey,
+  registrationKey,
   idNumberKey,
   cleanString,
   upperNormalize,
@@ -46,21 +45,6 @@ export interface Cluster {
   archiveReason?: string;
 }
 
-/**
- * A candidate name-bridge merge pair. Operator must confirm before merging.
- * orphanClusterId and candidateClusterId are the in-memory Cluster.id values
- * (stored as merged._cluster_id in Supabase after pipeline save).
- */
-export interface PendingNameMatch {
-  orphanClusterId: string;
-  candidateClusterId: string;
-  orphanName: string;
-  candidateName: string;
-  orphanSource: SourceType;
-  candidateSources: SourceType[];
-  score: number;
-}
-
 // -----------------------------------------------------------------------------
 // Pick primary key from a single record
 // -----------------------------------------------------------------------------
@@ -79,12 +63,14 @@ function pickPrimaryKey(rec: ClientRecord): { type: Cluster['primaryKeyType']; v
   }
 
   // Default: try registration number first (works for most entity types)
-  const reg = registrationMatchKey(rec.registration_nr);
+  const reg = registrationKey(rec.registration_nr);
   if (reg) return { type: 'reg', value: reg };
 
+  // Then fall back to ID number (for unclassified)
   const id = idNumberKey(rec.id_number);
   if (id) return { type: 'id', value: id };
 
+  // Then trust deed (for unclassified)
   const td = cleanString(rec.trust_deed_number);
   if (td) return { type: 'trust_deed', value: td };
 
@@ -101,30 +87,9 @@ function nameSimilarity(a: string, b: string): number {
   const nb = upperNormalize(b);
   if (!na || !nb) return 0;
   if (na === nb) return 1;
-
   const d = levenshtein(na, nb);
   const maxLen = Math.max(na.length, nb.length);
-  const levSim = 1 - d / maxLen;
-
-  // Token sort: handles "ABC Trading Pty Ltd" vs "ABC TRADING PTYLTD"
-  const tokensA = na.split(/[^A-Z0-9]+/).filter(Boolean).sort().join('');
-  const tokensB = nb.split(/[^A-Z0-9]+/).filter(Boolean).sort().join('');
-  const td2 = levenshtein(tokensA, tokensB);
-  const tokenMaxLen = Math.max(tokensA.length, tokensB.length);
-  const tokenSim = tokenMaxLen > 0 ? 1 - td2 / tokenMaxLen : 0;
-
-  return Math.max(levSim, tokenSim);
-}
-
-/** Returns true if the record has at least one valid primary identifier. */
-export function hasPrimaryIdentifier(rec: ClientRecord): boolean {
-  const reg = registrationMatchKey(rec.registration_nr);
-  if (reg && reg.length >= 10) return true;
-  const id = idNumberKey(rec.id_number);
-  if (id && id.length === 13) return true;
-  const td = cleanString(rec.trust_deed_number);
-  if (td) return true;
-  return false;
+  return 1 - d / maxLen;
 }
 
 const NAME_MATCH_THRESHOLD = 0.85;
@@ -133,20 +98,30 @@ const NAME_MATCH_THRESHOLD = 0.85;
 // Main matcher
 // -----------------------------------------------------------------------------
 
+export interface PendingNameMatch {
+  orphanId: string;
+  orphanName: string;
+  candidateClusterId: string;
+  candidateName: string;
+  score: number;
+}
+
 export interface MatchResult {
   clusters: Cluster[];
   pendingNameMatches: PendingNameMatch[];
   stats: {
     inputRecords: number;
     clusters: number;
-    pendingNameMatches: number;
+    nameBridged: number;
     archived: number;
+    pendingConfirmation: number;
   };
 }
 
 export function matchRecords(records: MappedRecord[]): MatchResult {
   const clusterMap = new Map<string, Cluster>();
   const orphans: MappedRecord[] = [];
+  const pendingNameMatches: PendingNameMatch[] = [];
 
   // Pass 1 — primary key match
   for (const r of records) {
@@ -172,13 +147,11 @@ export function matchRecords(records: MappedRecord[]): MatchResult {
     }
   }
 
-  // Pass 2 — name bridge: collect SUGGESTIONS, do NOT auto-merge
-  const pendingNameMatches: PendingNameMatch[] = [];
-  const matchedOrphanIds = new Set<string>();
-
+  // Pass 2 — name bridge for orphans (collect matches for confirmation instead of auto-merging)
+  const stillOrphaned: MappedRecord[] = [];
   for (const orphan of orphans) {
     const orphanName = cleanString(orphan.data.client_name);
-    if (!orphanName) continue;
+    if (!orphanName) { stillOrphaned.push(orphan); continue; }
 
     let best: { cluster: Cluster; score: number } | null = null;
     for (const cluster of clusterMap.values()) {
@@ -193,33 +166,21 @@ export function matchRecords(records: MappedRecord[]): MatchResult {
     }
 
     if (best) {
-      const orphanClusterId = `orphan:${orphan.id}`;
+      // Instead of merging directly, collect as pending confirmation
       pendingNameMatches.push({
-        orphanClusterId,
-        candidateClusterId: best.cluster.id,
+        orphanId: orphan.id,
         orphanName,
-        candidateName: cleanString(best.cluster.members[0]?.data.client_name),
-        orphanSource: orphan.source,
-        candidateSources: [...best.cluster.sources],
+        candidateClusterId: best.cluster.id,
+        candidateName: cleanString(best.cluster.members[0]?.data.client_name ?? ''),
         score: best.score,
       });
-      // Create a separate single-member cluster for this orphan (archived until confirmed)
-      clusterMap.set(orphanClusterId, {
-        id: orphanClusterId,
-        primaryKeyType: 'none',
-        primaryKeyValue: '',
-        members: [orphan],
-        sources: [orphan.source],
-        archived: true,
-        archiveReason: `Possible duplicate of "${cleanString(best.cluster.members[0]?.data.client_name)}" — awaiting operator confirmation.`,
-      });
-      matchedOrphanIds.add(orphan.id);
+    } else {
+      stillOrphaned.push(orphan);
     }
   }
 
-  // Pass 3 — archive remaining orphans (no name match found)
-  for (const o of orphans) {
-    if (matchedOrphanIds.has(o.id)) continue;
+  // Pass 3 — archive what's left
+  for (const o of stillOrphaned) {
     const id = `archive:${o.id}`;
     clusterMap.set(id, {
       id,
@@ -229,8 +190,8 @@ export function matchRecords(records: MappedRecord[]): MatchResult {
       sources: [o.source],
       archived: true,
       archiveReason:
-        'No primary identifier found (registration number, SA ID number, or trust deed number). ' +
-        'Cannot file or report for this client. Return to firm for clarification.',
+        'No registration number, ID number, or trust deed number found. ' +
+        'Unable to cross-reference in other sources by name.',
     });
   }
 
@@ -241,50 +202,69 @@ export function matchRecords(records: MappedRecord[]): MatchResult {
     stats: {
       inputRecords: records.length,
       clusters: clusters.length,
-      pendingNameMatches: pendingNameMatches.length,
+      nameBridged: 0, // Will be incremented when operator confirms matches
       archived: clusters.filter((c) => c.archived).length,
+      pendingConfirmation: pendingNameMatches.length,
     },
   };
 }
 
-// -----------------------------------------------------------------------------
-// Apply operator decisions from DedupConfirmation
-// -----------------------------------------------------------------------------
-
 /**
- * Merge approved orphan clusters into their candidate clusters.
- * Rejected orphans remain as separate archived clusters.
- * Returns a new clusters array with decisions applied.
+ * Applies operator-confirmed name matches to clusters.
+ *
+ * After the operator has reviewed pending name matches and decided which to approve/reject,
+ * this function merges approved orphans into their candidate clusters and archives rejected ones.
+ *
+ * @param clusters - Current cluster map from matchRecords()
+ * @param orphans - Original orphan records from Pass 2
+ * @param pendingMatches - Array of pending matches from matchRecords() result
+ * @param approved - Array of orphan IDs that operator approved for merge
+ * @param rejected - Array of orphan IDs that operator rejected (archive separately)
+ * @returns Updated clusters with merges applied
  */
 export function applyNameMatches(
   clusters: Cluster[],
+  orphans: MappedRecord[],
   pendingMatches: PendingNameMatch[],
-  approvedOrphanClusterIds: string[],
-  rejectedOrphanClusterIds: string[],
+  approved: string[],
+  rejected: string[],
 ): Cluster[] {
-  const approvedSet = new Set(approvedOrphanClusterIds);
-  const rejectedSet = new Set(rejectedOrphanClusterIds);
   const clusterMap = new Map(clusters.map((c) => [c.id, c]));
+  const approvedSet = new Set(approved);
+  const rejectedSet = new Set(rejected);
+  const orphanMap = new Map(orphans.map((o) => [o.id, o]));
+  const matchMap = new Map(pendingMatches.map((m) => [m.orphanId, m]));
 
-  for (const match of pendingMatches) {
-    const orphan = clusterMap.get(match.orphanClusterId);
-    const candidate = clusterMap.get(match.candidateClusterId);
-    if (!orphan || !candidate) continue;
+  // Apply approved merges: move orphan from pending into target cluster
+  for (const orphanId of approvedSet) {
+    const match = matchMap.get(orphanId);
+    const orphan = orphanMap.get(orphanId);
+    if (!match || !orphan) continue;
 
-    if (approvedSet.has(match.orphanClusterId)) {
-      // Merge orphan members into candidate
-      for (const m of orphan.members) {
-        candidate.members.push(m);
-        if (!candidate.sources.includes(m.source)) candidate.sources.push(m.source);
+    const targetCluster = clusterMap.get(match.candidateClusterId);
+    if (targetCluster) {
+      targetCluster.members.push(orphan);
+      if (!targetCluster.sources.includes(orphan.source)) {
+        targetCluster.sources.push(orphan.source);
       }
-      clusterMap.delete(match.orphanClusterId);
-    } else if (rejectedSet.has(match.orphanClusterId)) {
-      // Keep separate — update archive reason to indicate operator decision
-      orphan.archiveReason =
-        `Operator kept separate from "${match.candidateName}". ` +
-        'No primary identifier found — return to firm for clarification.';
     }
-    // If neither approved nor rejected (shouldn't happen after confirmation), leave as-is
+  }
+
+  // Archive rejected orphans: create new archive clusters for them
+  for (const orphanId of rejectedSet) {
+    const orphan = orphanMap.get(orphanId);
+    if (!orphan) continue;
+
+    const archiveId = `archive:${orphan.id}`;
+    clusterMap.set(archiveId, {
+      id: archiveId,
+      primaryKeyType: 'none',
+      primaryKeyValue: '',
+      members: [orphan],
+      sources: [orphan.source],
+      archived: true,
+      archiveReason: 'Operator rejected name-based merge suggestion.',
+    });
   }
 
   return Array.from(clusterMap.values());

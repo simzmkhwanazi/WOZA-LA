@@ -48,9 +48,11 @@ interface FileMappingState {
 export function MappingStep({
   sessionId,
   onComplete,
+  onDedupRequired,
 }: {
   sessionId: string;
   onComplete?: () => void;
+  onDedupRequired?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -59,6 +61,7 @@ export function MappingStep({
   const [fileMappings, setFileMappings] = useState<FileMappingState[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [pipelineLog, setPipelineLog] = useState<string[]>([]);
+  const [hasPendingDedup, setHasPendingDedup] = useState(false);
   const hasRun = useRef(false);
 
   const appendLog = (s: string) => setPipelineLog((l) => [...l, s]);
@@ -205,8 +208,8 @@ export function MappingStep({
       setProgress(70);
       setStatusText('Matching and deduplicating…');
 
-      const { clusters, stats } = matchRecords(allMapped);
-      appendLog(`${stats.clusters} clusters · ${stats.nameBridged} name-bridged · ${stats.archived} archived`);
+      const { clusters, pendingNameMatches, stats } = matchRecords(allMapped);
+      appendLog(`${stats.clusters} clusters · ${stats.pendingNameMatches} pending dedup · ${stats.archived} archived`);
       setProgress(80);
 
       setStatusText('Merging with source-of-truth hierarchy…');
@@ -236,15 +239,26 @@ export function MappingStep({
         if (insErr) throw insErr;
       }
 
+      // Save pending name matches + reset dedup_confirmed flag
       await supabase
         .from('sessions')
-        .update({ status: 'reviewing' })
+        .update({
+          status: pendingNameMatches.length > 0 ? 'mapping' : 'reviewing',
+          pending_name_matches: pendingNameMatches,
+          dedup_confirmed: pendingNameMatches.length === 0,
+        })
         .eq('id', sessionId);
 
       setProgress(100);
-      setStatusText('Done — pipeline complete.');
+      const hasPending = pendingNameMatches.length > 0;
+      setHasPendingDedup(hasPending);
+      setStatusText(
+        hasPending
+          ? `Done — ${pendingNameMatches.length} possible duplicate${pendingNameMatches.length === 1 ? '' : 's'} need review.`
+          : 'Done — pipeline complete.',
+      );
       setPhase('done');
-      appendLog('Pipeline complete.');
+      appendLog(hasPending ? `${pendingNameMatches.length} name-bridge pairs need operator review.` : 'Pipeline complete.');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMsg(msg);
@@ -362,16 +376,25 @@ export function MappingStep({
         )}
 
         {(phase === 'done') && (
-          <div className="mt-4 flex gap-2">
-            <button
-              className="btn btn-primary"
-              onClick={() => onComplete?.()}
-            >
-              Go to Review →
-            </button>
+          <div className="mt-4 flex gap-2 flex-wrap">
+            {hasPendingDedup ? (
+              <button
+                className="btn btn-primary"
+                onClick={() => onDedupRequired?.()}
+              >
+                Review Possible Duplicates →
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                onClick={() => onComplete?.()}
+              >
+                Go to Review →
+              </button>
+            )}
             <button
               className="btn btn-secondary"
-              onClick={() => { hasRun.current = false; setPhase('idle'); run(); }}
+              onClick={() => { hasRun.current = false; setPhase('idle'); setHasPendingDedup(false); run(); }}
             >
               Re-run pipeline
             </button>

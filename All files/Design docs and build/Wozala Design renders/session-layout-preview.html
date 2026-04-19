@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Woza La — Session Layout Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Poppins', sans-serif; background: #F7F8FA; color: #2D3748; min-height: 100vh; }
+
+  :root {
+    --teal: #2BBCBC;
+    --teal-dark: #229E9E;
+    --teal-light: #E6F7F7;
+    --teal-50: #F0FBFB;
+    --navy: #2D3748;
+    --navy-800: #1A202C;
+    --navy-600: #4A5568;
+    --navy-400: #A0AEC0;
+    --navy-200: #E2E8F0;
+    --white: #FFFFFF;
+    --bg: #F7F8FA;
+    --red: #E53E3E;
+    --amber: #D69E2E;
+    --amber-light: #FFFFF0;
+    --green: #38A169;
+    --green-light: #F0FFF4;
+    --blue: #3182CE;
+    --blue-light: #EBF8FF;
+    --purple: #805AD5;
+    --purple-light: #FAF5FF;
+  }
+
+  /* ═══ HEADER ═══ */
+  .header {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .header-left { display: flex; align-items: baseline; gap: 8px; }
+  .header-logo { font-weight: 700; font-size: 20px; color: var(--navy-800); letter-spacing: -0.5px; }
+  .header-by { font-size: 11px; color: var(--navy-400); }
+  .header-tagline { font-size: 10px; font-weight: 600; color: var(--teal); text-transform: uppercase; letter-spacing: 2px; display: block; line-height: 1; margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .nav-link { font-size: 13px; font-weight: 500; color: var(--navy-600); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  .nav-link:hover { color: var(--teal); }
+  .sep { color: var(--navy-200); }
+  .user-email { font-size: 12px; color: var(--navy-400); }
+  .btn-logout { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--navy-200); background: var(--white); font-size: 12px; color: var(--navy-600); cursor: pointer; font-family: 'Poppins', sans-serif; }
+  .btn-logout:hover { background: var(--bg); }
+
+  /* ═══ BREADCRUMB BAR ═══ */
+  .bc-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bc-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy-400);
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+    font-family: 'Poppins', sans-serif;
+  }
+  .bc-step:hover { color: var(--navy-600); }
+  .bc-step.active { color: var(--teal-dark); background: var(--teal-50); }
+  .bc-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    border: 2px solid var(--navy-400);
+    color: var(--navy-400);
+    flex-shrink: 0;
+  }
+  .bc-step.active .bc-num {
+    border-color: var(--teal);
+    background: var(--teal);
+    color: #fff;
+  }
+  .bc-step.done .bc-num {
+    border-color: var(--teal-dark);
+    background: var(--teal-dark);
+    color: #fff;
+  }
+  .bc-sep { color: var(--navy-200); font-size: 14px; user-select: none; }
+
+  .re-export-hint {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #5A67D8;
+  }
+  .re-export-hint a { text-decoration: underline; cursor: pointer; }
+  .re-export-hint a:hover { color: #434190; }
+
+  /* ═══ MAIN LAYOUT ═══ */
+  .main {
+    display: flex;
+    min-height: calc(100vh - 97px);
+  }
+
+  /* ═══ SIDEBAR ═══ */
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--white);
+    border-right: 1px solid var(--navy-200);
+    display: flex;
+    flex-direction: column;
+  }
+  .sb-firm-block {
+    padding: 20px;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  .sb-firm { font-weight: 600; font-size: 14px; color: var(--navy-800); line-height: 1.3; }
+  .sb-operator { font-size: 12px; color: var(--navy-400); margin-top: 2px; }
+  .sb-status {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .sb-status.reviewing { color: var(--blue); background: var(--blue-light); }
+  .sb-status.importing { color: var(--amber); background: var(--amber-light); }
+  .sb-status.exported  { color: var(--green); background: var(--green-light); }
+
+  nav.sb-nav { padding-top: 12px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy-600);
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: 'Poppins', sans-serif;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--navy-800); }
+  .nav-item.active {
+    color: var(--teal-dark);
+    background: var(--teal-50);
+    border-left-color: var(--teal);
+    font-weight: 600;
+  }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; line-height: 1; flex-shrink: 0; }
+
+  .subnav { padding: 2px 0 6px 52px; }
+  .subnav-link {
+    display: block;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--navy-400);
+    cursor: pointer;
+    border-radius: 6px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.15s;
+  }
+  .subnav-link:hover { background: var(--bg); color: var(--navy-600); }
+  .subnav-link.active { color: var(--teal-dark); font-weight: 600; }
+
+  /* ═══ CONTENT AREA ═══ */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .content-inner {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 28px 28px;
+  }
+
+  /* ═══ UPLOAD STEP PREVIEW ═══ */
+  .step-header { margin-bottom: 20px; }
+  .step-title { font-size: 20px; font-weight: 600; color: var(--navy-800); margin-bottom: 4px; }
+  .step-sub { font-size: 13px; color: var(--navy-600); }
+
+  .dropzone {
+    border: 2px dashed var(--teal);
+    border-radius: 14px;
+    background: var(--teal-50);
+    padding: 44px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+  }
+  .dropzone:hover { background: var(--teal-light); border-color: var(--teal-dark); }
+  .dz-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.65; }
+  .dz-text { font-size: 14px; font-weight: 500; color: var(--navy-800); }
+  .dz-sub { font-size: 12px; color: var(--navy-400); margin-top: 4px; }
+
+  .source-label { font-size: 12px; color: var(--navy-600); margin-bottom: 10px; font-weight: 500; }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .pill {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid;
+    transition: all 0.15s;
+    font-family: 'Poppins', sans-serif;
+  }
+  .pill-cipc { background: #EBF8FF; color: #3182CE; border-color: #3182CE; }
+  .pill-sars { background: #F0FFF4; color: #38A169; border-color: #38A169; }
+  .pill-sage { background: var(--purple-light); color: var(--purple); border-color: var(--purple); }
+  .pill-xero { background: #EBF8FF; color: #4299E1; border-color: #4299E1; }
+  .pill-excel { background: #EDF2F7; color: #4A5568; border-color: #A0AEC0; }
+  .pill-emp { background: #EBF4FF; color: #5A67D8; border-color: #5A67D8; }
+  .pill.active { filter: brightness(0.95); box-shadow: 0 0 0 3px rgba(43,188,188,0.25); }
+
+  .uploaded-label { font-size: 12px; color: var(--navy-400); margin-bottom: 10px; }
+  .file-cards { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+  .file-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .f-icon { font-size: 22px; opacity: 0.7; }
+  .f-info { flex: 1; }
+  .f-name { font-size: 13px; font-weight: 500; color: var(--navy-800); }
+  .f-meta { font-size: 11px; color: var(--navy-400); margin-top: 2px; }
+  .f-badge {
+    display: inline-block;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-right: 6px;
+  }
+  .fb-sage  { background: var(--purple-light); color: var(--purple); }
+  .fb-cipc  { background: #EBF8FF; color: #3182CE; }
+  .fb-sars  { background: #F0FFF4; color: #38A169; }
+  .f-ok { font-size: 11px; color: var(--green); font-weight: 600; }
+  .f-remove { cursor: pointer; color: var(--navy-400); font-size: 14px; padding: 4px 6px; border-radius: 4px; border: none; background: none; }
+  .f-remove:hover { color: var(--red); background: #FFF5F5; }
+
+  .btn-run {
+    display: block; width: 100%;
+    padding: 14px;
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 8px;
+  }
+  .btn-run:hover { background: var(--teal-dark); }
+
+  /* ═══ TABS FOR DEMO ═══ */
+  .demo-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--navy-200);
+    margin-bottom: 28px;
+    background: var(--white);
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+    border: 1px solid var(--navy-200);
+  }
+  .demo-tab {
+    flex: 1;
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--navy-400);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: 'Poppins', sans-serif;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .demo-tab:hover { color: var(--navy-600); background: var(--bg); }
+  .demo-tab.active { color: var(--teal-dark); border-bottom-color: var(--teal); font-weight: 600; background: var(--white); }
+
+  /* ═══ REVIEW STEP PREVIEW ═══ */
+  .summary-cards { display: flex; gap: 12px; margin-bottom: 24px; }
+  .sc {
+    flex: 1;
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .sc-num { font-size: 26px; font-weight: 700; margin-bottom: 2px; }
+  .sc-label { font-size: 11px; color: var(--navy-400); text-transform: uppercase; letter-spacing: 0.5px; }
+  .sc-teal .sc-num { color: var(--teal); }
+  .sc-red .sc-num { color: var(--red); }
+  .sc-green .sc-num { color: var(--green); }
+  .sc-amber .sc-num { color: var(--amber); }
+
+  .filter-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-tab {
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--navy-200);
+    background: var(--white); color: var(--navy-600);
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.15s;
+  }
+  .filter-tab:hover { border-color: var(--teal); color: var(--teal); }
+  .filter-tab.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+  .client-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--white); border: 1px solid var(--navy-200); border-radius: 10px; overflow: hidden; }
+  .client-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--navy-400); background: var(--bg); border-bottom: 1px solid var(--navy-200); }
+  .client-table td { padding: 12px 14px; border-bottom: 1px solid #F5F5F5; vertical-align: middle; }
+  .client-table tbody tr:hover { background: var(--teal-50); cursor: pointer; }
+  .client-table tbody tr:last-child td { border-bottom: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot-green { background: var(--green); }
+  .dot-red { background: var(--red); }
+  .dot-amber { background: var(--amber); }
+  .dot-gray { background: var(--navy-400); }
+  .entity-badge { font-size: 11px; padding: 2px 8px; border-radius: 8px; background: #EDF2F7; color: var(--navy-600); }
+
+  /* ═══ EXPORT STEP PREVIEW ═══ */
+  .readiness-bar-wrap { margin-bottom: 24px; }
+  .readiness-label { font-size: 12px; color: var(--navy-600); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .readiness-track { height: 8px; background: var(--navy-200); border-radius: 4px; overflow: hidden; }
+  .readiness-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.3s; }
+
+  .export-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%;
+    padding: 16px;
+    background: var(--teal);
+    color: #fff;
+    border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer; transition: background 0.15s;
+    margin-bottom: 20px;
+  }
+  .export-btn:hover { background: var(--teal-dark); }
+
+  .version-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .version-table th { text-align: left; padding: 8px 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--navy-400); border-bottom: 1px solid var(--navy-200); }
+  .version-table td { padding: 10px 12px; border-bottom: 1px solid #F5F5F5; color: var(--navy-600); }
+  .version-table tr:last-child td { border-bottom: none; }
+  .dl-link { color: var(--teal); text-decoration: underline; cursor: pointer; }
+
+  /* ═══ SECTION HEADING ═══ */
+  .section-heading { font-size: 13px; font-weight: 600; color: var(--navy-400); text-transform: uppercase; letter-spacing: 0.8px; margin: 28px 0 12px 0; }
+
+  /* hidden initially */
+  .step-panel { display: none; }
+  .step-panel.visible { display: block; }
+
+  /* ═══ ACTIVE MAIN STEP highlight ═══ */
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header class="header">
+  <div class="header-left">
+    <div>
+      <div style="display:flex; align-items:baseline; gap:6px;">
+        <span class="header-logo">Woza La</span>
+        <span class="header-by">by DataGrows</span>
+      </div>
+      <span class="header-tagline">Get In. Stay In.</span>
+    </div>
+  </div>
+  <nav class="header-right">
+    <span class="nav-link">Sessions</span>
+    <span class="nav-link">Feature Engine</span>
+    <span class="nav-link">Settings</span>
+    <span class="sep">|</span>
+    <span class="user-email">simz@datagrows.co.za</span>
+    <button class="btn-logout">Log out</button>
+  </nav>
+</header>
+
+<!-- ═══════════ BREADCRUMB BAR ═══════════ -->
+<div class="bc-bar">
+  <button class="bc-step done" onclick="setMain('import')">
+    <span class="bc-num">✓</span>
+    <span>Import</span>
+  </button>
+  <span class="bc-sep">→</span>
+  <button class="bc-step active" onclick="setMain('review')">
+    <span class="bc-num">2</span>
+    <span>Review</span>
+  </button>
+  <span class="bc-sep">→</span>
+  <button class="bc-step" onclick="setMain('export')">
+    <span class="bc-num">3</span>
+    <span>Export</span>
+  </button>
+
+  <div class="re-export-hint">
+    ◷ Changes since last export
+    <a onclick="setMain('export')">Re-export →</a>
+  </div>
+</div>
+
+<!-- ═══════════ MAIN ═══════════ -->
+<div class="main">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar">
+    <div class="sb-firm-block">
+      <div class="sb-firm">Rich Accountants</div>
+      <div class="sb-operator">Operator: Simz</div>
+      <span class="sb-status reviewing">Reviewing</span>
+    </div>
+
+    <nav class="sb-nav" id="sidebar-nav">
+      <button class="nav-item" id="nav-import" onclick="setMain('import')">
+        <span class="nav-icon">📥</span>
+        <span>Import</span>
+      </button>
+
+      <button class="nav-item active" id="nav-review" onclick="setMain('review')">
+        <span class="nav-icon">✓</span>
+        <span>Review</span>
+      </button>
+      <!-- Review sub-nav -->
+      <div class="subnav" id="subnav-review">
+        <button class="subnav-link active" onclick="setSub('review')">Clients</button>
+        <button class="subnav-link" onclick="setSub('dashboard')">Dashboard</button>
+      </div>
+
+      <button class="nav-item" id="nav-export" onclick="setMain('export')">
+        <span class="nav-icon">📤</span>
+        <span>Export</span>
+      </button>
+      <!-- Export sub-nav (hidden initially) -->
+      <div class="subnav" id="subnav-export" style="display:none;">
+        <button class="subnav-link active" onclick="setSub('export')">Export</button>
+        <button class="subnav-link" onclick="setSub('audit')">Audit Log</button>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ══ CONTENT ══ -->
+  <div class="content">
+    <div class="content-inner">
+
+      <!-- ══════ IMPORT STEP ══════ -->
+      <div class="step-panel" id="panel-import">
+        <div class="step-header">
+          <h2 class="step-title">Upload Files</h2>
+          <p class="step-sub">Drag files here or click to browse. Supports .xlsx, .xls, .csv (max 50MB)</p>
+        </div>
+
+        <div class="dropzone" onclick="alert('File picker')">
+          <div class="dz-icon">📁</div>
+          <div class="dz-text">Drag files here or click to browse</div>
+          <div class="dz-sub">Supports .xlsx, .xls, .csv · Max 50 MB · Max 10,000 rows</div>
+        </div>
+
+        <p class="source-label">Select source type before uploading:</p>
+        <div class="pills">
+          <button class="pill pill-cipc active" onclick="togglePill(this)">CIPC</button>
+          <button class="pill pill-sars" onclick="togglePill(this)">SARS</button>
+          <button class="pill pill-sage" onclick="togglePill(this)">Sage</button>
+          <button class="pill pill-xero" onclick="togglePill(this)">Xero</button>
+          <button class="pill pill-excel" onclick="togglePill(this)">Excel</button>
+          <button class="pill pill-emp" onclick="togglePill(this)">Employees</button>
+        </div>
+
+        <p class="uploaded-label">Uploaded files (3)</p>
+        <div class="file-cards">
+          <div class="file-card">
+            <div class="f-icon">📄</div>
+            <div class="f-info">
+              <div class="f-name">sage_client_list_2024.xlsx</div>
+              <div class="f-meta"><span class="f-badge fb-sage">Sage</span> 156 rows</div>
+            </div>
+            <div class="f-ok">✓ Parsed</div>
+            <button class="f-remove" onclick="this.closest('.file-card').remove()">✕</button>
+          </div>
+          <div class="file-card">
+            <div class="f-icon">📄</div>
+            <div class="f-info">
+              <div class="f-name">cipc_registration_data.xlsx</div>
+              <div class="f-meta"><span class="f-badge fb-cipc">CIPC</span> 142 rows</div>
+            </div>
+            <div class="f-ok">✓ Parsed</div>
+            <button class="f-remove" onclick="this.closest('.file-card').remove()">✕</button>
+          </div>
+          <div class="file-card">
+            <div class="f-icon">📄</div>
+            <div class="f-info">
+              <div class="f-name">sars_tax_export.csv</div>
+              <div class="f-meta"><span class="f-badge fb-sars">SARS</span> 89 rows</div>
+            </div>
+            <div class="f-ok">✓ Parsed</div>
+            <button class="f-remove" onclick="this.closest('.file-card').remove()">✕</button>
+          </div>
+        </div>
+
+        <button class="btn-run" onclick="setMain('review')">Process Files &amp; Continue →</button>
+      </div>
+
+      <!-- ══════ REVIEW STEP ══════ -->
+      <div class="step-panel visible" id="panel-review">
+        <div class="step-header">
+          <h2 class="step-title">Review Clients</h2>
+          <p class="step-sub">Inspect, edit, and resolve issues before export.</p>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="summary-cards">
+          <div class="sc sc-teal"><div class="sc-num">20</div><div class="sc-label">Total</div></div>
+          <div class="sc sc-green"><div class="sc-num">14</div><div class="sc-label">Ready</div></div>
+          <div class="sc sc-red"><div class="sc-num">3</div><div class="sc-label">Errors</div></div>
+          <div class="sc sc-amber"><div class="sc-num">3</div><div class="sc-label">Warnings</div></div>
+        </div>
+
+        <!-- Filter pills -->
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="activateFilter(this)">All (20)</button>
+          <button class="filter-tab" onclick="activateFilter(this)">Ready (14)</button>
+          <button class="filter-tab" onclick="activateFilter(this)">Errors (3)</button>
+          <button class="filter-tab" onclick="activateFilter(this)">Warnings (3)</button>
+          <button class="filter-tab" onclick="activateFilter(this)">Archived</button>
+        </div>
+
+        <!-- Client table -->
+        <table class="client-table">
+          <thead>
+            <tr>
+              <th>Client / Company</th>
+              <th>Entity</th>
+              <th>Reg. No.</th>
+              <th>Tax No.</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Mbeki Trading (Pty) Ltd</strong></td>
+              <td><span class="entity-badge">(Pty) Ltd</span></td>
+              <td>2019/123456/07</td>
+              <td>8634521097</td>
+              <td><span class="dot dot-green"></span>Ready</td>
+            </tr>
+            <tr>
+              <td><strong>Dlamini Family Trust</strong></td>
+              <td><span class="entity-badge">Trust</span></td>
+              <td>—</td>
+              <td>9012345678</td>
+              <td><span class="dot dot-amber"></span>Warning</td>
+            </tr>
+            <tr>
+              <td><strong>Nkosi &amp; Associates CC</strong></td>
+              <td><span class="entity-badge">CC</span></td>
+              <td>2014/087654/23</td>
+              <td>—</td>
+              <td><span class="dot dot-red"></span>Error</td>
+            </tr>
+            <tr>
+              <td><strong>Theron Boekhouers</strong></td>
+              <td><span class="entity-badge">Sole Prop</span></td>
+              <td>—</td>
+              <td>7734100842</td>
+              <td><span class="dot dot-green"></span>Ready</td>
+            </tr>
+            <tr>
+              <td><strong>Venter Financial Services</strong></td>
+              <td><span class="entity-badge">(Pty) Ltd</span></td>
+              <td>2021/543210/07</td>
+              <td>4512309876</td>
+              <td><span class="dot dot-green"></span>Ready</td>
+            </tr>
+            <tr>
+              <td><strong>Okonkwo Investments CC</strong></td>
+              <td><span class="entity-badge">CC</span></td>
+              <td>2016/234987/23</td>
+              <td>—</td>
+              <td><span class="dot dot-red"></span>Error</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ══════ DASHBOARD SUB-STEP ══════ -->
+      <div class="step-panel" id="panel-dashboard">
+        <div class="step-header">
+          <h2 class="step-title">Session Dashboard</h2>
+          <p class="step-sub">Rich Accountants · Session summary and analytics.</p>
+        </div>
+        <div class="summary-cards">
+          <div class="sc sc-teal"><div class="sc-num">20</div><div class="sc-label">Clients</div></div>
+          <div class="sc sc-green"><div class="sc-num">3</div><div class="sc-label">Sources</div></div>
+          <div class="sc sc-amber"><div class="sc-num">6</div><div class="sc-label">Issues</div></div>
+          <div class="sc sc-green"><div class="sc-num">14</div><div class="sc-label">Export-ready</div></div>
+        </div>
+        <p style="color:var(--navy-400);font-size:13px;margin-top:16px;">Dashboard charts and breakdowns would appear here.</p>
+      </div>
+
+      <!-- ══════ EXPORT STEP ══════ -->
+      <div class="step-panel" id="panel-export">
+        <div class="step-header">
+          <h2 class="step-title">Export to DataGrows</h2>
+          <p class="step-sub">Generate the 86-column DataGrows masterfile (.xlsx) with all validations preserved.</p>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="summary-cards">
+          <div class="sc sc-green"><div class="sc-num">14</div><div class="sc-label">Ready</div></div>
+          <div class="sc sc-red"><div class="sc-num">3</div><div class="sc-label">Blocked</div></div>
+          <div class="sc sc-amber"><div class="sc-num">3</div><div class="sc-label">Warnings</div></div>
+          <div class="sc sc-teal"><div class="sc-num">2</div><div class="sc-label">Exports</div></div>
+        </div>
+
+        <!-- Readiness bar -->
+        <div class="readiness-bar-wrap">
+          <div class="readiness-label">
+            <span>Export readiness</span>
+            <span style="color:var(--green);font-weight:600;">70% ready (14 / 20)</span>
+          </div>
+          <div class="readiness-track">
+            <div class="readiness-fill" style="width:70%"></div>
+          </div>
+        </div>
+
+        <!-- Export button -->
+        <button class="export-btn">
+          <span>📥</span>
+          Download DataGrows Masterfile (.xlsx)
+        </button>
+
+        <!-- Version history -->
+        <p class="section-heading">Export History</p>
+        <table class="version-table">
+          <thead>
+            <tr>
+              <th>Version</th>
+              <th>Date</th>
+              <th>Exported by</th>
+              <th>Records</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600;">v2</td>
+              <td>19 Apr 2026, 14:32</td>
+              <td>Simz</td>
+              <td>14</td>
+              <td><a class="dl-link">↓ Download</a></td>
+            </tr>
+            <tr>
+              <td>v1</td>
+              <td>17 Apr 2026, 09:15</td>
+              <td>Simz</td>
+              <td>12</td>
+              <td><a class="dl-link">↓ Download</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ══════ AUDIT LOG ══════ -->
+      <div class="step-panel" id="panel-audit">
+        <div class="step-header">
+          <h2 class="step-title">Audit Log</h2>
+          <p class="step-sub">Full history of edits, imports, and exports for this session.</p>
+        </div>
+        <p style="color:var(--navy-400);font-size:13px;">Audit entries would be listed here in reverse chronological order.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentMain = 'review';
+  let currentSub = 'review';
+
+  function setMain(main) {
+    currentMain = main;
+    const subMap = { import: 'import', review: 'review', export: 'export' };
+    setSub(subMap[main]);
+    updateBreadcrumb();
+    updateSidebar();
+  }
+
+  function setSub(sub) {
+    currentSub = sub;
+    // Show correct panel
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('visible'));
+    const panelId = sub === 'import' ? 'panel-import' : 'panel-' + sub;
+    const panel = document.getElementById(panelId);
+    if (panel) panel.classList.add('visible');
+    // Update subnav active state
+    document.querySelectorAll('.subnav-link').forEach(l => l.classList.remove('active'));
+    updateSidebar();
+  }
+
+  function updateBreadcrumb() {
+    const stepOrder = ['import', 'review', 'export'];
+    const currentIdx = stepOrder.indexOf(currentMain);
+    const btns = document.querySelectorAll('.bc-step');
+    btns.forEach((btn, i) => {
+      btn.classList.remove('active', 'done');
+      if (i < currentIdx) btn.classList.add('done');
+      else if (i === currentIdx) btn.classList.add('active');
+    });
+    // Update bc-num for done steps
+    btns.forEach((btn, i) => {
+      const num = btn.querySelector('.bc-num');
+      if (num) num.textContent = i < currentIdx ? '✓' : String(i + 1);
+    });
+  }
+
+  function updateSidebar() {
+    // Nav items active state
+    ['import', 'review', 'export'].forEach(key => {
+      const el = document.getElementById('nav-' + key);
+      if (el) el.classList.toggle('active', key === currentMain);
+    });
+    // Sub-navs visibility
+    document.getElementById('subnav-review').style.display = currentMain === 'review' ? 'block' : 'none';
+    document.getElementById('subnav-export').style.display = currentMain === 'export' ? 'block' : 'none';
+    // Sub-nav active links
+    document.querySelectorAll('.subnav-link').forEach(l => {
+      l.classList.toggle('active', l.textContent.toLowerCase().startsWith(currentSub === 'review' ? 'client' : currentSub));
+    });
+    // Status badge
+    const badge = document.querySelector('.sb-status');
+    const labels = { import: ['importing', 'Importing'], review: ['reviewing', 'Reviewing'], export: ['exported', 'Exported'] };
+    const [cls, text] = labels[currentMain];
+    badge.className = 'sb-status ' + cls;
+    badge.textContent = text;
+  }
+
+  function togglePill(btn) {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function activateFilter(btn) {
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

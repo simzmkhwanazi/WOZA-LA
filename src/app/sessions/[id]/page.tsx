@@ -5,14 +5,16 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { UploadStep } from '@/components/steps/UploadStep';
 import { MappingStep } from '@/components/steps/MappingStep';
+import { DedupConfirmation } from '@/components/steps/DedupConfirmation';
 import { ReviewStep } from '@/components/steps/ReviewStep';
 import { ExportStep } from '@/components/steps/ExportStep';
 import { AuditStep } from '@/components/steps/AuditStep';
 import { DashboardStep } from '@/components/steps/DashboardStep';
 import { FirmDataSlideOver, type FirmTab } from '@/components/FirmDataSlideOver';
 
-type Step = 'upload' | 'mapping' | 'review' | 'dashboard' | 'export' | 'audit';
-type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
+// Sub-tabs within each main step
+type SubTab = 'upload' | 'mapping' | 'dedup' | 'review' | 'dashboard' | 'export' | 'audit';
+type MainStep = 'import' | 'review' | 'export';
 
 interface SessionDto {
   id: string;
@@ -24,34 +26,64 @@ interface SessionDto {
   firms: { name: string } | null;
 }
 
-const TAB_PARAM_MAP: Record<string, Step> = {
-  upload: 'upload', mapping: 'mapping', process: 'mapping',
-  review: 'review', dashboard: 'dashboard', export: 'export', audit: 'audit',
+// Which main step each sub-tab belongs to
+const SUB_TO_MAIN: Record<SubTab, MainStep> = {
+  upload: 'import', mapping: 'import', dedup: 'import',
+  review: 'review', dashboard: 'review',
+  export: 'export', audit: 'export',
 };
+
+const TAB_PARAM_MAP: Record<string, SubTab> = {
+  upload: 'upload', mapping: 'mapping', process: 'mapping',
+  dedup: 'dedup', review: 'review', dashboard: 'dashboard',
+  export: 'export', audit: 'audit',
+};
+
+// Status label derived from session.status
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'uploading':  return 'Importing';
+    case 'mapping':    return 'Processing';
+    case 'reviewing':  return 'Reviewing';
+    case 'exported':   return 'Exported';
+    case 'archived':   return 'Archived';
+    default:           return status;
+  }
+}
+
+function statusColor(status: string): string {
+  switch (status) {
+    case 'exported': return 'text-green-700 bg-green-50';
+    case 'reviewing': return 'text-blue-700 bg-blue-50';
+    case 'uploading':
+    case 'mapping':  return 'text-amber-700 bg-amber-50';
+    default:         return 'text-gray-600 bg-gray-100';
+  }
+}
+
+const MAIN_STEPS: { key: MainStep; label: string; icon: string; defaultSub: SubTab }[] = [
+  { key: 'import', label: 'Import',  icon: '📥', defaultSub: 'upload' },
+  { key: 'review', label: 'Review',  icon: '✓',  defaultSub: 'review' },
+  { key: 'export', label: 'Export',  icon: '📤', defaultSub: 'export' },
+];
+
+type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
 
 export default function SessionPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = String(params.id);
-  // Stabilise the Supabase client — createBrowserClient() returns a new object
-  // on every call, which would make loadSession unstable and cause an infinite
-  // re-render loop via useCallback/useEffect.
   const supabase = useMemo(() => createClient(), []);
 
-  // Derive current step directly from the URL — no independent state needed.
-  // Tab clicks use router.replace(), which updates the URL and re-derives step.
-  // This eliminates the URL-sync useEffect that was a source of race conditions.
-  const step: Step = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'upload';
+  const subTab: SubTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'upload';
+  const activeMain: MainStep = SUB_TO_MAIN[subTab];
 
   const [session, setSession] = useState<SessionDto | null>(null);
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('all');
   const [loading, setLoading] = useState(true);
-  const [notes, setNotes] = useState('');
-  const [notesSaving, setNotesSaving] = useState(false);
   const [hasPendingReExport, setHasPendingReExport] = useState(false);
 
-  // Slide-over state
   const [slideOverOpen, setSlideOverOpen] = useState(false);
   const [slideOverTab, setSlideOverTab] = useState<FirmTab>('company');
 
@@ -65,9 +97,6 @@ export default function SessionPage() {
       const firmObj = Array.isArray(data.firms) ? data.firms[0] : data.firms;
       const dto = { ...data, firms: firmObj ?? null } as SessionDto;
       setSession(dto);
-      setNotes(dto.notes ?? '');
-
-      // Check for post-export edits
       if (dto.last_exported_at) {
         const { count } = await supabase
           .from('edits')
@@ -81,15 +110,13 @@ export default function SessionPage() {
 
   useEffect(() => { loadSession(); }, [loadSession]);
 
-  function goToTab(tab: Step) {
+  function goToTab(tab: SubTab) {
     router.replace(`/sessions/${sessionId}?tab=${tab}`, { scroll: false });
   }
 
-  async function saveNotes() {
-    if (!session) return;
-    setNotesSaving(true);
-    await supabase.from('sessions').update({ notes }).eq('id', sessionId);
-    setNotesSaving(false);
+  function goToMain(step: MainStep) {
+    const { defaultSub } = MAIN_STEPS.find((s) => s.key === step)!;
+    goToTab(defaultSub);
   }
 
   function navigateToReview(filter: ReviewFilter) {
@@ -102,119 +129,202 @@ export default function SessionPage() {
     setSlideOverOpen(true);
   }
 
-  if (loading) return <p className="text-navy-500">Loading session…</p>;
-  if (!session) return <p className="text-rose-600">Session not found.</p>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-navy-500 text-sm">Loading session…</p>
+      </div>
+    );
+  }
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-rose-600 text-sm">Session not found.</p>
+      </div>
+    );
+  }
 
-  const steps: { key: Step; label: string; tour: string }[] = [
-    { key: 'upload',    label: '1. Upload',     tour: 'tab-upload' },
-    { key: 'mapping',   label: '2. Process',    tour: 'tab-mapping' },
-    { key: 'review',    label: '3. Review',     tour: 'tab-review' },
-    { key: 'dashboard', label: '4. Dashboard',  tour: 'tab-dashboard' },
-    { key: 'export',    label: '5. Export',     tour: 'tab-export' },
-    { key: 'audit',     label: '6. Audit Log',  tour: 'tab-audit' },
-  ];
+  const firmDisplayName = session.firms?.name ?? 'Unknown Firm';
 
   return (
     <>
-      <div className="space-y-4 sm:space-y-6">
-        {/* Session header */}
-        <div>
-          <p className="text-xs text-navy-500 uppercase tracking-wide">Firm</p>
-          <h2 className="text-xl sm:text-2xl font-semibold text-navy-800 leading-tight">
-            {session.firms?.name ?? 'Unknown firm'}
-          </h2>
-          {session.operator_name && (
-            <p className="text-sm text-navy-500 mt-0.5">Operator: {session.operator_name}</p>
-          )}
-          <div className="mt-3 flex items-start gap-2">
-            <textarea
-              rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={saveNotes}
-              placeholder="Session notes… (auto-saves on blur)"
-              className="input resize-none text-sm flex-1"
-            />
-            {notesSaving && (
-              <span className="text-xs text-navy-400 mt-2 whitespace-nowrap">Saving…</span>
-            )}
-          </div>
-        </div>
+      {/* ── Breadcrumb bar ── */}
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-2.5 flex items-center gap-2">
+        {MAIN_STEPS.map((step, idx) => {
+          const isActive = step.key === activeMain;
+          const isDone = MAIN_STEPS.findIndex((s) => s.key === activeMain) > idx;
+          return (
+            <div key={step.key} className="flex items-center gap-2">
+              {idx > 0 && (
+                <span className="text-gray-300 text-sm select-none">→</span>
+              )}
+              <button
+                onClick={() => goToMain(step.key)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-teal-50 text-teal-700'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border-2 ${
+                  isDone
+                    ? 'border-teal bg-teal text-white'
+                    : isActive
+                    ? 'border-teal bg-teal text-white'
+                    : 'border-gray-300 text-gray-400'
+                }`}>
+                  {isDone ? '✓' : idx + 1}
+                </span>
+                <span>{step.label}</span>
+              </button>
+            </div>
+          );
+        })}
 
-        {/* Re-export banner — soft indigo, non-alarming */}
+        {/* Re-export indicator */}
         {hasPendingReExport && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-700">
-            <span>◷ This session has changes since the last export — consider re-exporting.</span>
+          <div className="ml-auto flex items-center gap-2 text-xs text-indigo-600">
+            <span>◷ Changes since last export</span>
             <button
               onClick={() => goToTab('export')}
-              className="text-xs font-medium text-indigo-700 hover:text-indigo-900 underline whitespace-nowrap flex-shrink-0"
+              className="underline hover:text-indigo-800"
             >
-              Go to Export →
+              Re-export →
             </button>
           </div>
         )}
+      </div>
 
-        {/* Tabs */}
-        <div className="-mx-4 sm:mx-0">
-          <div className="flex overflow-x-auto border-b border-navy-100 px-4 sm:px-0 gap-0 scrollbar-none">
-            {steps.map((s) => (
-              <button
-                key={s.key}
-                onClick={() => goToTab(s.key)}
-                data-tour={s.tour}
-                className={`flex-shrink-0 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
-                  step === s.key
-                    ? 'border-teal text-teal-700'
-                    : 'border-transparent text-navy-500 hover:text-navy-800'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
+      {/* ── Main area: sidebar + content ── */}
+      <div className="flex min-h-[calc(100vh-97px)]">
+        {/* Sidebar — 260px */}
+        <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+          {/* Firm info */}
+          <div className="px-5 pt-5 pb-4 border-b border-gray-100">
+            <p className="font-semibold text-navy-800 text-sm leading-tight">{firmDisplayName}</p>
+            {session.operator_name && (
+              <p className="text-xs text-gray-400 mt-0.5">Operator: {session.operator_name}</p>
+            )}
+            <span className={`inline-block mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor(session.status)}`}>
+              {statusLabel(session.status)}
+            </span>
           </div>
-        </div>
 
-        {/* Step content */}
-        <div>
-          {step === 'upload' && <UploadStep sessionId={sessionId} />}
-          {step === 'mapping' && (
-            <MappingStep
-              sessionId={sessionId}
-              onComplete={() => goToTab('review')}
-            />
-          )}
-          {step === 'review' && (
-            <ReviewStep
-              sessionId={sessionId}
-              operatorName={session.operator_name}
-              initialFilter={reviewFilter}
-              onOpenFirmSlideOver={openFirmSlideOver}
-            />
-          )}
-          {step === 'dashboard' && (
-            <DashboardStep
-              sessionId={sessionId}
-              firmName={session.firms?.name ?? 'firm'}
-              operatorName={session.operator_name}
-              onOpenFirmSlideOver={openFirmSlideOver}
-            />
-          )}
-          {step === 'export' && (
-            <ExportStep
-              sessionId={sessionId}
-              firmName={session.firms?.name ?? 'firm'}
-              onNavigateToReview={navigateToReview}
-              onExportComplete={() => {
-                setHasPendingReExport(false);
-                void loadSession();
-              }}
-            />
-          )}
-          {step === 'audit' && <AuditStep sessionId={sessionId} />}
+          {/* Nav */}
+          <nav className="flex-1 pt-3">
+            {MAIN_STEPS.map((step) => {
+              const isActive = step.key === activeMain;
+              return (
+                <button
+                  key={step.key}
+                  onClick={() => goToMain(step.key)}
+                  className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm font-medium transition-colors border-l-3 border-l-[3px] ${
+                    isActive
+                      ? 'text-teal-700 bg-teal-50 border-l-teal'
+                      : 'text-gray-600 border-l-transparent hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="text-base leading-none">{step.icon}</span>
+                  <span>{step.label}</span>
+                </button>
+              );
+            })}
+
+            {/* Review sub-nav — visible when on review main step */}
+            {activeMain === 'review' && (
+              <div className="mt-1 ml-11">
+                <button
+                  onClick={() => goToTab('review')}
+                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
+                    subTab === 'review' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Clients
+                </button>
+                <button
+                  onClick={() => goToTab('dashboard')}
+                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
+                    subTab === 'dashboard' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Dashboard
+                </button>
+              </div>
+            )}
+
+            {/* Export sub-nav — visible when on export main step */}
+            {activeMain === 'export' && (
+              <div className="mt-1 ml-11">
+                <button
+                  onClick={() => goToTab('export')}
+                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
+                    subTab === 'export' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Export
+                </button>
+                <button
+                  onClick={() => goToTab('audit')}
+                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
+                    subTab === 'audit' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Audit Log
+                </button>
+              </div>
+            )}
+          </nav>
+        </aside>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            {subTab === 'upload' && <UploadStep sessionId={sessionId} />}
+            {subTab === 'mapping' && (
+              <MappingStep
+                sessionId={sessionId}
+                onComplete={() => goToTab('review')}
+                onDedupRequired={() => goToTab('dedup')}
+              />
+            )}
+            {subTab === 'dedup' && (
+              <DedupConfirmation
+                sessionId={sessionId}
+                onComplete={() => goToTab('review')}
+              />
+            )}
+            {subTab === 'review' && (
+              <ReviewStep
+                sessionId={sessionId}
+                operatorName={session.operator_name}
+                initialFilter={reviewFilter}
+                onOpenFirmSlideOver={openFirmSlideOver}
+              />
+            )}
+            {subTab === 'dashboard' && (
+              <DashboardStep
+                sessionId={sessionId}
+                firmName={firmDisplayName}
+                operatorName={session.operator_name}
+                onOpenFirmSlideOver={openFirmSlideOver}
+              />
+            )}
+            {subTab === 'export' && (
+              <ExportStep
+                sessionId={sessionId}
+                firmName={firmDisplayName}
+                onNavigateToReview={navigateToReview}
+                onExportComplete={() => {
+                  setHasPendingReExport(false);
+                  void loadSession();
+                }}
+              />
+            )}
+            {subTab === 'audit' && <AuditStep sessionId={sessionId} />}
+          </div>
         </div>
       </div>
 
-      {/* Firm data slide-over — renders outside main flow to avoid layout impact */}
       <FirmDataSlideOver
         sessionId={sessionId}
         open={slideOverOpen}

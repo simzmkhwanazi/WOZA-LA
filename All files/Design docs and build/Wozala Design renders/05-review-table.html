@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Woza La — Review Table</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Poppins', sans-serif; background: #F7F8FA; color: #2D3748; min-height: 100vh; }
+
+  :root {
+    --teal: #2BBCBC;
+    --teal-dark: #229E9E;
+    --teal-light: #E6F7F7;
+    --teal-50: #F0FBFB;
+    --navy: #2D3748;
+    --navy-600: #4A5568;
+    --navy-400: #A0AEC0;
+    --navy-200: #E2E8F0;
+    --white: #FFFFFF;
+    --bg: #F7F8FA;
+    --red: #E53E3E;
+    --red-light: #FFF5F5;
+    --amber: #D69E2E;
+    --amber-light: #FFFFF0;
+    --green: #38A169;
+    --green-light: #F0FFF4;
+    --blue: #3182CE;
+  }
+
+  .header {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 8px; }
+  .header-logo { font-weight: 700; font-size: 18px; color: var(--teal); }
+  .header-tagline { font-size: 13px; color: var(--teal-dark); opacity: 0.7; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-firm { font-weight: 600; font-size: 14px; }
+  .header-session { font-size: 12px; color: var(--navy-600); background: var(--bg); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--navy-200); }
+
+  .bc-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bc-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy-400);
+  }
+  .bc-step.active { color: var(--teal); background: var(--teal-light); }
+  .bc-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    border: 2px solid var(--navy-400);
+    color: var(--navy-400);
+  }
+  .bc-step.active .bc-num { border-color: var(--teal); background: var(--teal); color: #fff; }
+  .bc-step.completed .bc-num { border-color: var(--teal-dark); background: var(--teal-dark); color: #fff; }
+
+  .main {
+    display: flex;
+    min-height: calc(100vh - 93px);
+  }
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--white);
+    border-right: 1px solid var(--navy-200);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sb-search {
+    padding: 12px 16px;
+    margin-bottom: 12px;
+  }
+  .search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--navy-200);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Poppins', sans-serif;
+  }
+  .search-input:focus { outline: none; border-color: var(--teal); }
+
+  .status-filters {
+    padding: 0 12px;
+    margin-bottom: 16px;
+  }
+  .filter-label { font-size: 10px; font-weight: 600; color: var(--navy-400); text-transform: uppercase; margin-bottom: 8px; }
+  .filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--navy-600);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .filter-item:hover { background: var(--bg); }
+  .filter-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .client-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .client-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 12px;
+  }
+  .client-item:hover { background: var(--bg); }
+  .client-item.selected { background: var(--teal-50); }
+  .client-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .content {
+    flex: 1;
+    padding: 28px 32px;
+    overflow-y: auto;
+  }
+  .content h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .content-sub { font-size: 12px; color: var(--navy-400); margin-bottom: 24px; }
+
+  .editor {
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .eg-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--teal-dark);
+    margin: 16px 0 10px 0;
+  }
+  .eg-title:first-child { margin-top: 0; }
+
+  .eg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .ef {
+    display: flex;
+    flex-direction: column;
+  }
+  .ef label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--navy-400);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .ef input, .ef select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--navy-200);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--navy);
+    background: var(--white);
+  }
+  .ef input:focus, .ef select:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 2px var(--teal-light);
+  }
+
+  .field-with-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .field-with-check input { flex: 1; }
+  .check-icon { color: var(--green); font-size: 14px; font-weight: bold; }
+  .conflict-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--blue);
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 4px;
+  }
+
+  .bulk-bar {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    left: 280px;
+    background: var(--teal);
+    color: white;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .bulk-bar.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .bulk-label { font-size: 12px; font-weight: 500; }
+  .bulk-select {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--navy);
+    background: white;
+    cursor: pointer;
+  }
+  .bulk-apply {
+    padding: 6px 16px;
+    background: white;
+    color: var(--teal);
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .audit-log {
+    background: var(--bg);
+    border: 1px solid var(--navy-200);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 20px;
+    cursor: pointer;
+  }
+  .audit-link { color: var(--teal); font-weight: 600; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <span class="header-logo">Woza La</span>
+    <span class="header-tagline">· Get In Stay In</span>
+  </div>
+  <div class="header-right">
+    <span class="header-firm">Rich Accountants</span>
+    <span class="header-session">#0042</span>
+  </div>
+</header>
+
+<!-- Breadcrumbs -->
+<div class="bc-bar">
+  <div class="bc-step completed">
+    <span class="bc-num">1</span>
+    <span>Import</span>
+  </div>
+  <span style="color: var(--navy-200);">→</span>
+  <div class="bc-step active">
+    <span class="bc-num">2</span>
+    <span>Review</span>
+  </div>
+  <span style="color: var(--navy-200);">→</span>
+  <div class="bc-step">
+    <span class="bc-num">3</span>
+    <span>Export</span>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-search">
+      <input type="text" class="search-input" placeholder="Search clients...">
+    </div>
+
+    <div class="status-filters">
+      <div class="filter-label">Status</div>
+      <div class="filter-item">
+        <div class="filter-dot" style="background: var(--green);"></div>
+        <span>Ready <strong>45</strong></span>
+      </div>
+      <div class="filter-item">
+        <div class="filter-dot" style="background: var(--red);"></div>
+        <span>Errors <strong>8</strong></span>
+      </div>
+      <div class="filter-item">
+        <div class="filter-dot" style="background: var(--amber);"></div>
+        <span>Warnings <strong>12</strong></span>
+      </div>
+      <div class="filter-item">
+        <div class="filter-dot" style="background: var(--navy-400);"></div>
+        <span>Skipped <strong>3</strong></span>
+      </div>
+    </div>
+
+    <div class="client-list">
+      <div class="client-item selected">
+        <div class="client-dot" style="background: var(--green);"></div>
+        <span>Mama Zola's Kitchen (Pty)</span>
+      </div>
+      <div class="client-item">
+        <div class="client-dot" style="background: var(--green);"></div>
+        <span>Van Wyk & Partners</span>
+      </div>
+      <div class="client-item">
+        <div class="client-dot" style="background: var(--amber);"></div>
+        <span>ABC Holdings Ltd</span>
+      </div>
+      <div class="client-item">
+        <div class="client-dot" style="background: var(--green);"></div>
+        <span>Sipho Dlamini (Trading)</span>
+      </div>
+      <div class="client-item">
+        <div class="client-dot" style="background: var(--red);"></div>
+        <span>XYZ Investments</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Content -->
+  <div class="content">
+    <h2>Mama Zola's Kitchen (Pty) Ltd</h2>
+    <p class="content-sub">86 fields grouped into categories. 1 conflict detected.</p>
+
+    <!-- Identity Section -->
+    <div class="editor">
+      <div class="eg-title">Identity</div>
+      <div class="eg-grid">
+        <div class="ef">
+          <label>Client Name</label>
+          <input type="text" value="Mama Zola's Kitchen (Pty) Ltd">
+        </div>
+        <div class="ef">
+          <label>Status</label>
+          <select><option selected>Active</option><option>Inactive</option></select>
+        </div>
+        <div class="ef">
+          <label>Entity Type</label>
+          <select><option>CC</option><option selected>PTY LTD</option><option>SOC</option></select>
+        </div>
+      </div>
+      <div class="eg-grid" style="margin-top: 10px;">
+        <div class="ef">
+          <label>Year End</label>
+          <select><option selected>February</option><option>December</option></select>
+        </div>
+        <div class="ef">
+          <label>Registration Nr</label>
+          <div class="field-with-check">
+            <input type="text" value="2018/123456/07">
+            <span class="check-icon">✓</span>
+          </div>
+        </div>
+        <div class="ef">
+          <label>ID Number<span class="conflict-dot" title="Click to view conflicts"></span></label>
+          <input type="text" value="8501015800086">
+        </div>
+      </div>
+    </div>
+
+    <!-- Tax Section -->
+    <div class="editor">
+      <div class="eg-title">Tax</div>
+      <div class="eg-grid">
+        <div class="ef">
+          <label>Tax Nr</label>
+          <div class="field-with-check">
+            <input type="text" value="9876543210" style="background: #FFFBEF;">
+            <span style="font-size: 9px; background: #EDF2F7; color: var(--navy-400); padding: 2px 6px; border-radius: 4px; white-space: nowrap;">Auto-filled</span>
+          </div>
+        </div>
+        <div class="ef">
+          <label>PAYE Nr</label>
+          <input type="text" placeholder="Not provided">
+        </div>
+        <div class="ef">
+          <label>VAT Nr</label>
+          <input type="text" value="4567890123">
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Section -->
+    <div class="editor">
+      <div class="eg-title">Contact</div>
+      <div class="eg-grid">
+        <div class="ef">
+          <label>Primary Contact</label>
+          <input type="text" value="Zola Mkhize">
+        </div>
+        <div class="ef">
+          <label>Contact Nr</label>
+          <input type="text" value="+27 11 234 5678">
+        </div>
+        <div class="ef">
+          <label>Email</label>
+          <input type="text" value="zola@mamazola.co.za">
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Log -->
+    <div class="audit-log">
+      <span class="audit-link" onclick="alert('View 12 changes in audit log')">View 12 changes</span>
+    </div>
+  </div>
+
+  <!-- Bulk Bar (hidden by default) -->
+  <div class="bulk-bar" id="bulkBar">
+    <span class="bulk-label">2 clients selected</span>
+    <select class="bulk-select">
+      <option disabled selected>Set Partner</option>
+      <option>Lerato Molefe</option>
+      <option>Thandi Dlamini</option>
+    </select>
+    <select class="bulk-select">
+      <option disabled selected>Set Status</option>
+      <option>Active</option>
+      <option>Inactive</option>
+    </select>
+    <button class="bulk-apply">Apply</button>
+  </div>
+</div>
+
+<script>
+  // Simulate conflict popover on click
+  document.querySelectorAll('.conflict-dot').forEach(dot => {
+    dot.addEventListener('click', function(e) {
+      e.stopPropagation();
+      alert('Conflict detected:\nCIPC: 8501015800086\nSARS: 501015800086\nWinner: CIPC (hierarchy)\n\nClick [Override] to change.');
+    });
+  });
+
+  // Simulate checkbox for client selection
+  let selectedCount = 0;
+  document.querySelectorAll('.client-item').forEach(item => {
+    item.addEventListener('click', function() {
+      this.classList.toggle('selected');
+      selectedCount = document.querySelectorAll('.client-item.selected').length;
+      const bulk = document.getElementById('bulkBar');
+      if (selectedCount >= 2) {
+        bulk.classList.add('show');
+        bulk.querySelector('.bulk-label').textContent = selectedCount + ' clients selected';
+      } else {
+        bulk.classList.remove('show');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Woza La — Export Step</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Poppins', sans-serif; background: #F7F8FA; color: #2D3748; min-height: 100vh; }
+
+  :root {
+    --teal: #2BBCBC;
+    --teal-dark: #229E9E;
+    --teal-light: #E6F7F7;
+    --navy: #2D3748;
+    --navy-600: #4A5568;
+    --navy-400: #A0AEC0;
+    --navy-200: #E2E8F0;
+    --white: #FFFFFF;
+    --bg: #F7F8FA;
+    --red: #E53E3E;
+    --amber: #D69E2E;
+    --amber-light: #FFFFF0;
+    --green: #38A169;
+    --green-light: #F0FFF4;
+  }
+
+  .header {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 8px; }
+  .header-logo { font-weight: 700; font-size: 18px; color: var(--teal); }
+  .header-tagline { font-size: 13px; color: var(--teal-dark); opacity: 0.7; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-firm { font-weight: 600; font-size: 14px; }
+  .header-session { font-size: 12px; color: var(--navy-600); background: var(--bg); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--navy-200); }
+  .header-status { font-size: 12px; color: var(--green); font-weight: 500; padding: 4px 12px; background: var(--green-light); border-radius: 6px; }
+
+  .bc-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--navy-200);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bc-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy-400);
+  }
+  .bc-step.active { color: var(--teal); background: var(--teal-light); }
+  .bc-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    border: 2px solid var(--navy-400);
+    color: var(--navy-400);
+  }
+  .bc-step.active .bc-num { border-color: var(--teal); background: var(--teal); color: #fff; }
+  .bc-step.completed .bc-num { border-color: var(--teal-dark); background: var(--teal-dark); color: #fff; }
+
+  .main {
+    display: flex;
+    min-height: calc(100vh - 93px);
+  }
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--white);
+    border-right: 1px solid var(--navy-200);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .sb-header {
+    padding: 0 20px;
+    border-bottom: 1px solid var(--navy-200);
+    padding-bottom: 16px;
+  }
+  .sb-firm { font-weight: 600; font-size: 14px; color: var(--navy); margin-bottom: 4px; }
+  .sb-info { font-size: 12px; color: var(--navy-400); line-height: 1.4; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy-600);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .nav-item.active {
+    color: var(--teal);
+    background: var(--teal-light);
+    border-left-color: var(--teal);
+    font-weight: 600;
+  }
+
+  .content {
+    flex: 1;
+    padding: 28px 32px;
+    overflow-y: auto;
+    max-width: 1000px;
+  }
+  .content h2 { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+
+  .summary-cards {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .sc {
+    flex: 1;
+    min-width: 140px;
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .sc-num { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .sc-label { font-size: 11px; color: var(--navy-400); text-transform: uppercase; letter-spacing: 0.5px; }
+  .sc-teal .sc-num { color: var(--teal); }
+  .sc-green .sc-num { color: var(--green); }
+  .sc-red .sc-num { color: var(--red); }
+  .sc-amber .sc-num { color: var(--amber); }
+  .sc-grey .sc-num { color: var(--navy-400); }
+
+  .export-section {
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .export-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+
+  .btn-export {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-export:hover { background: var(--teal-dark); }
+  .btn-export:disabled {
+    background: var(--navy-400);
+    cursor: not-allowed;
+  }
+
+  .export-options {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--navy-200);
+  }
+  .option-label { font-size: 12px; color: var(--navy-600); }
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  .checkbox-group input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--teal);
+  }
+
+  .warning-banner {
+    background: var(--amber-light);
+    border: 1px solid var(--amber);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 24px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .warning-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+  .warning-text { font-size: 13px; color: var(--navy); line-height: 1.4; }
+
+  .version-history {
+    margin-top: 28px;
+  }
+  .vh-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .vh-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+    background: var(--white);
+    border: 1px solid var(--navy-200);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .vh-table th {
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--navy-400);
+    background: var(--bg);
+    border-bottom: 1px solid var(--navy-200);
+  }
+  .vh-table td {
+    padding: 12px;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  .vh-table tbody tr:last-child td { border-bottom: none; }
+  .vh-version { font-weight: 600; color: var(--navy); }
+  .vh-date { font-size: 11px; color: var(--navy-400); }
+  .btn-download {
+    padding: 4px 12px;
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+  }
+  .btn-download:hover { background: var(--teal-dark); }
+
+  .archived-section {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--navy-200);
+  }
+  .archived-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; cursor: pointer; }
+  .archived-item {
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <span class="header-logo">Woza La</span>
+    <span class="header-tagline">· Get In Stay In</span>
+  </div>
+  <div class="header-right">
+    <span class="header-firm">Rich Accountants</span>
+    <span class="header-session">#0042</span>
+    <span class="header-status">Ready</span>
+  </div>
+</header>
+
+<!-- Breadcrumbs -->
+<div class="bc-bar">
+  <div class="bc-step completed">
+    <span class="bc-num">1</span>
+    <span>Import</span>
+  </div>
+  <span style="color: var(--navy-200);">→</span>
+  <div class="bc-step completed">
+    <span class="bc-num">2</span>
+    <span>Review</span>
+  </div>
+  <span style="color: var(--navy-200);">→</span>
+  <div class="bc-step active">
+    <span class="bc-num">3</span>
+    <span>Export</span>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-firm">Rich Accountants</div>
+      <div class="sb-info">
+        Operator: Lerato Molefe<br>
+        Status: Ready to export
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-item">
+        <span>📥</span>
+        <span>Import</span>
+      </div>
+      <div class="nav-item">
+        <span>✓</span>
+        <span>Review</span>
+      </div>
+      <div class="nav-item active">
+        <span>📊</span>
+        <span>Export</span>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <div class="sc">
+        <div class="sc-num" style="color: var(--navy);">142</div>
+        <div class="sc-label">Total Clients</div>
+      </div>
+      <div class="sc sc-green">
+        <div class="sc-num">128</div>
+        <div class="sc-label">Ready</div>
+      </div>
+      <div class="sc sc-red">
+        <div class="sc-num">8</div>
+        <div class="sc-label">Blocked</div>
+      </div>
+      <div class="sc sc-grey">
+        <div class="sc-num">3</div>
+        <div class="sc-label">Skipped</div>
+      </div>
+      <div class="sc sc-amber">
+        <div class="sc-num">3</div>
+        <div class="sc-label">Archived</div>
+      </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="export-section">
+      <div class="export-title">Download Final Export</div>
+      <button class="btn-export" onclick="alert('Export v3 downloaded: rich-accountants-v3.xlsx')">
+        📥 Download .xlsx
+      </button>
+
+      <div class="export-options">
+        <div class="option-label">Export options:</div>
+        <label class="checkbox-group">
+          <input type="checkbox">
+          <span>Strip instructions row</span>
+        </label>
+        <label class="checkbox-group">
+          <input type="checkbox">
+          <span>Include archived report</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Warning -->
+    <div class="warning-banner">
+      <div class="warning-icon">⚠️</div>
+      <div class="warning-text">
+        <strong>Changed since last export</strong><br>
+        14 fields edited since v2 was exported. Review details in version history below.
+      </div>
+    </div>
+
+    <!-- Version History -->
+    <div class="version-history">
+      <div class="vh-title">Version History</div>
+      <table class="vh-table">
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Operator</th>
+            <th>Date &amp; Time</th>
+            <th>Clients</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="vh-version">v3</td>
+            <td>Lerato Molefe</td>
+            <td class="vh-date">19 Apr 2026, 14:30</td>
+            <td>128</td>
+            <td><button class="btn-download">Download</button></td>
+          </tr>
+          <tr>
+            <td class="vh-version">v2</td>
+            <td>Lerato Molefe</td>
+            <td class="vh-date">18 Apr 2026, 09:15</td>
+            <td>125</td>
+            <td><button class="btn-download">Download</button></td>
+          </tr>
+          <tr>
+            <td class="vh-version">v1</td>
+            <td>Thabo Nkosi</td>
+            <td class="vh-date">15 Apr 2026, 16:45</td>
+            <td>120</td>
+            <td><button class="btn-download">Download</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Archived Clients -->
+    <div class="archived-section">
+      <div class="archived-title" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none';">
+        ▶ Archived Clients (3)
+      </div>
+      <div style="display: none;">
+        <div class="archived-item">Botha & Sons — Archived 12 Apr 2026 (Client inactive per firm)</div>
+        <div class="archived-item">Legacy Trust Account — Archived 8 Apr 2026 (Duplicate entry removed)</div>
+        <div class="archived-item">Test Account — Archived 2 Apr 2026 (Firm requested removal)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
