@@ -74,6 +74,12 @@ export default function HomePage() {
     void load();
   }, [supabase]);
 
+  async function deleteSession(id: string, name: string) {
+    if (!confirm(`Delete session for "${name}"? This cannot be undone.`)) return;
+    await supabase.from('sessions').delete().eq('id', id);
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+  }
+
   async function createSession() {
     if (!newFirm.trim()) return;
     setCreating(true);
@@ -203,6 +209,7 @@ export default function HomePage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Operator</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Last Updated</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -232,6 +239,14 @@ export default function HomePage() {
                       {s.notes ? (
                         <span className="text-xs text-gray-400 italic truncate max-w-[160px] block">{s.notes}</span>
                       ) : null}
+                    </td>
+                    <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => deleteSession(s.id, firmName(s))}
+                        className="text-xs text-gray-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 );

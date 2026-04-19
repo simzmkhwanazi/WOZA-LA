@@ -44,7 +44,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {user && (
                 <>
                   <Link href="/" className="nav-link" data-tour="nav-sessions">Sessions</Link>
-                  <Link href="/feature-engine" className="nav-link hidden sm:inline-flex" data-tour="nav-feature-engine">Feature Engine</Link>
                   <Link href="/settings" className="nav-link hidden sm:inline-flex" data-tour="nav-settings">Settings</Link>
                   <span className="text-gray-200 mx-1 hidden sm:inline">|</span>
                   <span className="text-xs text-navy-400 hidden md:inline mr-1">{user.email}</span>
