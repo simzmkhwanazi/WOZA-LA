@@ -92,6 +92,8 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
   // Whether any upload is in flight
   const [running, setRunning] = useState(false);
 
+  const [deleting, setDeleting] = useState<string | null>(null);
+
   // ── Load existing uploads ────────────────────────────────────────────────────
 
   const loadUploads = useCallback(async () => {
@@ -102,6 +104,14 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
       .order('created_at', { ascending: true });
     setUploaded((data as UploadedRow[]) ?? []);
   }, [sessionId, supabase]);
+
+  async function deleteUpload(id: string) {
+    setDeleting(id);
+    await supabase.from('raw_records').delete().eq('upload_id', id);
+    await supabase.from('uploads').delete().eq('id', id);
+    setUploaded((prev) => prev.filter((u) => u.id !== id));
+    setDeleting(null);
+  }
 
   useEffect(() => { loadUploads(); }, [loadUploads]);
 
@@ -371,16 +381,17 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
                 <th className="px-4 py-2 font-medium hidden sm:table-cell">Type</th>
                 <th className="px-4 py-2 font-medium hidden sm:table-cell">Rows</th>
                 <th className="px-4 py-2 font-medium hidden md:table-cell">Columns</th>
+                <th className="px-4 py-2 font-medium w-8" />
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-100">
               {uploaded.map((u) => {
                 const isPdfFile = u.file_name.toLowerCase().endsWith('.pdf');
+                const isDeleting = deleting === u.id;
                 return (
-                  <tr key={u.id}>
+                  <tr key={u.id} className={isDeleting ? 'opacity-40' : ''}>
                     <td className="px-4 py-2 font-medium text-navy-800 max-w-[140px] sm:max-w-none truncate">
                       {u.file_name}
-                      {/* row count subtitle on mobile */}
                       {!isPdfFile && u.row_count != null && (
                         <span className="block text-xs text-navy-400 sm:hidden">{u.row_count} rows · {u.detected_columns?.length ?? 0} cols</span>
                       )}
@@ -406,6 +417,14 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
                     </td>
                     <td className="px-4 py-2 text-navy-500 hidden md:table-cell">
                       {isPdfFile ? '—' : `${u.detected_columns?.length ?? 0} detected`}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        onClick={() => void deleteUpload(u.id)}
+                        disabled={isDeleting}
+                        title="Remove this upload"
+                        className="text-gray-300 hover:text-rose-500 transition-colors text-xl leading-none disabled:opacity-30"
+                      >×</button>
                     </td>
                   </tr>
                 );
