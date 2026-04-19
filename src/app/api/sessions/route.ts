@@ -11,7 +11,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const { firmName } = await req.json() as { firmName?: string };
+  const { firmName, operatorName: operatorOverride, notes } = await req.json() as {
+    firmName?: string;
+    operatorName?: string;
+    notes?: string;
+  };
 
   if (!firmName?.trim()) {
     return NextResponse.json({ error: 'Firm name is required' }, { status: 400 });
@@ -21,6 +25,7 @@ export async function POST(req: NextRequest) {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
   const operatorName =
+    operatorOverride?.trim() ||
     (user?.user_metadata?.full_name as string | undefined) ??
     user?.email ??
     null;
@@ -46,6 +51,7 @@ export async function POST(req: NextRequest) {
       firm_id: firm.id,
       status: 'uploading',
       operator_name: operatorName,
+      notes: notes?.trim() || null,
     })
     .select()
     .single();

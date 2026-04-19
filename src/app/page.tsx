@@ -77,31 +77,27 @@ export default function HomePage() {
   async function createSession() {
     if (!newFirm.trim()) return;
     setCreating(true);
-
-    // Upsert firm
-    const { data: firm } = await supabase
-      .from('firms')
-      .upsert({ name: newFirm.trim() }, { onConflict: 'name' })
-      .select('id')
-      .single();
-
-    if (!firm) { setCreating(false); return; }
-
-    const { data: session } = await supabase
-      .from('sessions')
-      .insert({
-        firm_id: firm.id,
-        status: 'uploading',
-        operator_name: newOperator.trim() || null,
-        notes: newNotes.trim() || null,
-      })
-      .select('id')
-      .single();
-
-    setCreating(false);
-    if (session) {
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firmName: newFirm.trim(),
+          operatorName: newOperator.trim() || undefined,
+          notes: newNotes.trim() || undefined,
+        }),
+      });
+      const data = await res.json() as { sessionId?: string; error?: string };
+      if (!res.ok || !data.sessionId) {
+        alert(data.error ?? 'Failed to create session');
+        setCreating(false);
+        return;
+      }
       setShowNewModal(false);
-      router.push(`/sessions/${session.id}?tab=upload`);
+      router.push(`/sessions/${data.sessionId}?tab=upload`);
+    } catch {
+      alert('Failed to create session');
+      setCreating(false);
     }
   }
 
