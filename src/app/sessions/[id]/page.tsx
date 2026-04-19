@@ -23,6 +23,7 @@ interface SessionDto {
   operator_name: string | null;
   notes: string | null;
   last_exported_at: string | null;
+  exported_at: string | null;
   firms: { name: string } | null;
 }
 
@@ -90,18 +91,19 @@ export default function SessionPage() {
   const loadSession = useCallback(async () => {
     const { data } = await supabase
       .from('sessions')
-      .select('id, firm_id, status, operator_name, notes, last_exported_at, firms(name)')
+      .select('id, firm_id, status, operator_name, notes, exported_at, firms(name)')
       .eq('id', sessionId)
       .single();
     if (data) {
       const firmObj = Array.isArray(data.firms) ? data.firms[0] : data.firms;
       const dto = { ...data, firms: firmObj ?? null } as SessionDto;
       setSession(dto);
-      if (dto.last_exported_at) {
+      const exportedAt = dto.last_exported_at ?? dto.exported_at;
+      if (exportedAt) {
         const { count } = await supabase
           .from('edits')
           .select('id', { count: 'exact', head: true })
-          .gt('created_at', dto.last_exported_at);
+          .gt('created_at', exportedAt);
         setHasPendingReExport((count ?? 0) > 0);
       }
     }

@@ -9,7 +9,7 @@ interface SessionRow {
   status: string;
   created_at: string;
   operator_name: string | null;
-  last_exported_at: string | null;
+  exported_at: string | null;
   notes: string | null;
   firms: { name: string } | { name: string }[] | null;
   clientCount?: number;
@@ -48,7 +48,7 @@ export default function HomePage() {
     async function load() {
       const { data: sessionData } = await supabase
         .from('sessions')
-        .select('id, status, created_at, operator_name, last_exported_at, notes, firms(name)')
+        .select('id, status, created_at, operator_name, exported_at, notes, firms(name)')
         .order('created_at', { ascending: false })
         .limit(100);
 
