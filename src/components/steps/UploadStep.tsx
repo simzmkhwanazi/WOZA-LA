@@ -6,18 +6,15 @@ import { parseWorkbook } from '@/lib/parsers/generic';
 import type { SourceType } from '@/lib/schema/sources';
 import { SOURCE_LABELS } from '@/lib/schema/sources';
 
-// Suggested labels for the datalist — users can type anything else too
-const SOURCE_SUGGESTIONS: string[] = [
-  'Company Details',
-  'CIPC',
-  'SARS',
-  'Sage',
-  'Xero',
-  'Employee List',
-  'Manual Excel',
-  'Contacts Directory',
-  'Supplier List',
-];
+const SOURCE_OPTIONS = [
+  { value: 'company',   label: 'Company Details' },
+  { value: 'cipc',      label: 'CIPC' },
+  { value: 'sars',      label: 'SARS' },
+  { value: 'sage',      label: 'Sage' },
+  { value: 'xero',      label: 'Xero' },
+  { value: 'employees', label: 'Employee List' },
+  { value: 'excel',     label: 'Manual Excel' },
+] as const;
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
@@ -86,7 +83,7 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
 
   // Queue of items to upload
   const [queue, setQueue] = useState<UploadItem[]>([
-    { id: makeId(), file: null, source: 'Company Details', status: 'idle', progress: 0 },
+    { id: makeId(), file: null, source: 'company', status: 'idle', progress: 0 },
   ]);
 
   // Already-uploaded files shown in the table below
@@ -262,39 +259,32 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
           to upload them in parallel. Max 50 MB per file.
         </p>
 
-        {/* Datalist for source suggestions */}
-        <datalist id="source-suggestions">
-          {SOURCE_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
-        </datalist>
-
-        <div className="space-y-3">
+        <div className="space-y-2">
           {queue.map((item, idx) => (
-            <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div key={item.id} className={`border rounded-xl p-3 transition-colors ${
+              item.status === 'success' ? 'border-emerald-200 bg-emerald-50' :
+              item.status === 'error'   ? 'border-rose-200 bg-rose-50' :
+              item.status === 'uploading' ? 'border-teal-200 bg-teal-50' :
+              'border-gray-200 bg-white'
+            }`}>
+              <div className="flex items-center gap-3">
+                {/* Row number */}
+                <span className="text-xs text-gray-400 w-5 text-right flex-shrink-0 font-medium">{idx + 1}.</span>
 
-              {/* Top row on mobile: number + source + remove */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-navy-400 w-5 text-right flex-shrink-0">{idx + 1}.</span>
-                <input
-                  type="text"
-                  list="source-suggestions"
+                {/* Source select */}
+                <select
                   value={item.source}
                   onChange={(e) => setSource(item.id, e.target.value)}
                   disabled={item.status === 'uploading'}
-                  placeholder="Source (e.g. SARS, Xero…)"
-                  className="input text-sm flex-1 sm:w-44 sm:flex-shrink-0"
-                />
-                {/* Remove — top-right on mobile */}
-                {item.status !== 'uploading' && queue.length > 1 && (
-                  <button
-                    onClick={() => removeRow(item.id)}
-                    className="text-navy-300 hover:text-rose-500 transition-colors flex-shrink-0 text-xl leading-none sm:hidden"
-                    title="Remove row"
-                  >×</button>
-                )}
-              </div>
+                  className="input text-sm w-44 flex-shrink-0"
+                >
+                  <option value="">— Select source —</option>
+                  {SOURCE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
 
-              {/* Bottom row on mobile: file + status/progress/retry + remove (desktop) */}
-              <div className="flex items-center gap-2 pl-7 sm:pl-0 flex-1">
+                {/* File input */}
                 <input
                   type="file"
                   accept=".xlsx,.xls,.csv,.pdf"
@@ -302,36 +292,38 @@ export function UploadStep({ sessionId }: { sessionId: string }) {
                   disabled={item.status === 'uploading'}
                   className="input text-sm flex-1 min-w-0"
                 />
-                <div className="flex-shrink-0 flex items-center gap-1.5">
+
+                {/* Status */}
+                <div className="flex-shrink-0 flex items-center gap-2 min-w-[60px] justify-end">
                   <StatusBadge status={item.status} />
                   {item.status === 'error' && (
                     <button onClick={() => retryOne(item)} className="text-xs text-teal-700 underline">Retry</button>
                   )}
                 </div>
-                {/* Remove — desktop only */}
+
+                {/* Remove */}
                 {item.status !== 'uploading' && queue.length > 1 && (
                   <button
                     onClick={() => removeRow(item.id)}
-                    className="text-navy-300 hover:text-rose-500 transition-colors flex-shrink-0 text-xl leading-none hidden sm:block"
+                    className="text-gray-300 hover:text-rose-500 transition-colors flex-shrink-0 text-xl leading-none"
                     title="Remove row"
                   >×</button>
                 )}
               </div>
 
-              {/* Progress bar (uploading only) */}
+              {/* Progress bar */}
               {item.status === 'uploading' && (
-                <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden ml-7 sm:ml-0 sm:w-24 sm:flex-shrink-0">
+                <div className="h-1 bg-teal-100 rounded-full overflow-hidden mt-2 mx-8">
                   <div className="h-full bg-teal-500 transition-all duration-300" style={{ width: `${item.progress}%` }} />
                 </div>
               )}
 
-              {/* Inline error */}
+              {/* Error message */}
               {item.error && (
-                <p className="text-xs text-rose-600 ml-7 sm:ml-0">{item.error}</p>
+                <p className="text-xs text-rose-600 mt-1.5 mx-8">{item.error}</p>
               )}
             </div>
           ))}
-
         </div>
 
         {/* Action row */}
