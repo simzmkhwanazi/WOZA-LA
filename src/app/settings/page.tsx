@@ -58,18 +58,6 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Resources */}
-      <div className="card p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-navy-700 uppercase tracking-widest">Resources</h3>
-        <ul className="space-y-2 text-sm">
-          <li>
-            <a href="https://www.mydatagrows.com/features" target="_blank" rel="noopener noreferrer"
-              className="text-teal font-medium hover:underline">
-              DataGrows Feature Catalogue →
-            </a>
-          </li>
-        </ul>
-      </div>
     </div>
   );
 }
