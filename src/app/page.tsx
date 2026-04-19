@@ -38,6 +38,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newFirm, setNewFirm] = useState('');
   const [newOperator, setNewOperator] = useState('');
@@ -74,10 +76,34 @@ export default function HomePage() {
     void load();
   }, [supabase]);
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map((s) => s.id))
+    );
+  }
+
+  async function deleteSelected() {
+    if (!confirm(`Delete ${selected.size} session${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setDeleting(true);
+    await supabase.from('sessions').delete().in('id', [...selected]);
+    setSessions((prev) => prev.filter((s) => !selected.has(s.id)));
+    setSelected(new Set());
+    setDeleting(false);
+  }
+
   async function deleteSession(id: string, name: string) {
     if (!confirm(`Delete session for "${name}"? This cannot be undone.`)) return;
     await supabase.from('sessions').delete().eq('id', id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
+    setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; });
   }
 
   async function createSession() {
@@ -186,6 +212,21 @@ export default function HomePage() {
         ))}
       </div>
 
+      {/* Batch delete bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 mb-3 bg-red-50 border border-red-200 rounded-lg">
+          <span className="text-sm text-red-700 font-medium">{selected.size} session{selected.size > 1 ? 's' : ''} selected</span>
+          <div className="flex gap-2">
+            <button onClick={() => setSelected(new Set())} className="text-xs text-gray-500 hover:text-gray-700 px-3 py-1 rounded border border-gray-200 bg-white">
+              Clear
+            </button>
+            <button onClick={deleteSelected} disabled={deleting} className="text-xs text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded disabled:opacity-50">
+              {deleting ? 'Deleting…' : `Delete ${selected.size}`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sessions table */}
       {loading ? (
         <div className="text-sm text-gray-400 text-center py-16">Loading…</div>
@@ -203,6 +244,9 @@ export default function HomePage() {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-3 w-8">
+                  <input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleSelectAll} className="rounded border-gray-300 text-teal cursor-pointer" />
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Firm</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Clients</th>
@@ -221,8 +265,11 @@ export default function HomePage() {
                   <tr
                     key={s.id}
                     onClick={() => router.push(`/sessions/${s.id}?tab=upload`)}
-                    className="border-b border-gray-100 last:border-0 cursor-pointer hover:bg-teal-50 transition-colors"
+                    className={`border-b border-gray-100 last:border-0 cursor-pointer transition-colors ${selected.has(s.id) ? 'bg-red-50' : 'hover:bg-teal-50'}`}
                   >
+                    <td className="px-4 py-3.5" onClick={(e) => { e.stopPropagation(); toggleSelect(s.id); }}>
+                      <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} className="rounded border-gray-300 text-teal cursor-pointer" />
+                    </td>
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-navy-800">{name}</div>
                     </td>
