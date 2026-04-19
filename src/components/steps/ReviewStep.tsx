@@ -151,11 +151,13 @@ export function ReviewStep({
   operatorName,
   initialFilter,
   onOpenFirmSlideOver,
+  onGoToImport,
 }: {
   sessionId: string;
   operatorName?: string | null;
   initialFilter?: Filter;
   onOpenFirmSlideOver?: (tab: FirmTab) => void;
+  onGoToImport?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [clusters, setClusters] = useState<ClusterRow[]>([]);
@@ -317,8 +319,18 @@ export function ReviewStep({
 
   if (clusters.length === 0) {
     return (
-      <div className="card p-8 text-center text-navy-500">
-        <p>No clusters yet. Run the mapping pipeline first.</p>
+      <div className="card p-10 text-center space-y-3">
+        <div className="text-4xl">📂</div>
+        <h3 className="font-semibold text-navy-800 text-lg">No client data yet</h3>
+        <p className="text-sm text-navy-500 max-w-sm mx-auto">
+          Go to <strong>Import</strong>, upload your source files, then run the mapping pipeline.
+          Processed clients will appear here for review.
+        </p>
+        {onGoToImport && (
+          <button onClick={onGoToImport} className="btn btn-primary text-sm mt-2">
+            ← Go to Import
+          </button>
+        )}
       </div>
     );
   }

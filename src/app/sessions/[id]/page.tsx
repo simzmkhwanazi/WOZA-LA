@@ -301,6 +301,7 @@ export default function SessionPage() {
                 operatorName={session.operator_name}
                 initialFilter={reviewFilter}
                 onOpenFirmSlideOver={openFirmSlideOver}
+                onGoToImport={() => goToTab('upload')}
               />
             )}
             {subTab === 'dashboard' && (
