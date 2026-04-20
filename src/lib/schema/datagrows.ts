@@ -130,7 +130,7 @@ export const DATAGROWS_FIELDS: readonly FieldDef[] = [
   { col: 'A', header: 'Client Name', key: 'client_name', type: 'string', required: true, maxLength: 255,
     description: 'Official client name. When merging sources, CIPC name wins.' },
   // B
-  { col: 'B', header: 'Status', key: 'status', type: 'enum', enum: STATUS_VALUES },
+  { col: 'B', header: 'Status', key: 'status', type: 'enum', enum: STATUS_VALUES, required: true },
   // C
   { col: 'C', header: 'Comment', key: 'comment', type: 'longtext' },
   // D — Entity Type (REQUIRED)
@@ -191,7 +191,7 @@ export const DATAGROWS_FIELDS: readonly FieldDef[] = [
   // AA–AH — Staff assignments (per-firm, from the firm's uploaded employee list)
   { col: 'AA', header: 'Partner', key: 'partner', type: 'staff' },
   { col: 'AB', header: 'Manager', key: 'manager', type: 'staff' },
-  { col: 'AC', header: 'Accountant', key: 'accountant', type: 'staff' },
+  { col: 'AC', header: 'Accountant', key: 'accountant', type: 'staff', required: true },
   { col: 'AD', header: 'Accounting Role', key: 'accounting_role', type: 'staff' },
   { col: 'AE', header: 'CIPC Role', key: 'cipc_role', type: 'staff' },
   { col: 'AF', header: 'Financials Role', key: 'financials_role', type: 'staff' },

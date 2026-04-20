@@ -89,6 +89,34 @@ interface EditRecord {
   created_at: string;
 }
 
+// ── Per-field error badge with distinct colour per field ─────────────────────
+
+const FIELD_BADGE_COLORS: Record<string, string> = {
+  client_name:  'bg-red-100 text-red-700 border-red-300',
+  status:       'bg-orange-100 text-orange-700 border-orange-300',
+  entity_type:  'bg-purple-100 text-purple-700 border-purple-300',
+  year_end:     'bg-blue-100 text-blue-700 border-blue-300',
+  accountant:   'bg-pink-100 text-pink-700 border-pink-300',
+};
+
+const FIELD_SHORT: Record<string, string> = {
+  client_name: 'Name',
+  status:      'Status',
+  entity_type: 'Entity',
+  year_end:    'Year End',
+  accountant:  'Accountant',
+};
+
+function ErrorBadge({ field }: { field: string }) {
+  const color = FIELD_BADGE_COLORS[field] ?? 'bg-rose-100 text-rose-700 border-rose-300';
+  const label = FIELD_SHORT[field] ?? field.replace(/_/g, ' ');
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${color}`}>
+      {label}
+    </span>
+  );
+}
+
 function ModifiedMarker({ edits }: { edits: EditRecord[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -388,8 +416,8 @@ export function ReviewStep({
           </thead>
           <tbody className="divide-y divide-navy-100">
             {filtered.map((c) => {
-              const errors = c.validation.issues.filter((i) => i.severity === 'error').length;
-              const warns = c.validation.issues.filter((i) => i.severity === 'warning').length;
+              const errorIssues = c.validation.issues.filter((i) => i.severity === 'error');
+              const warnIssues  = c.validation.issues.filter((i) => i.severity === 'warning');
               const isOpen = editing === c.id;
               const clusterEdits = editsByCluster[c.id] ?? [];
               const isModified = clusterEdits.length > 0;
@@ -413,9 +441,15 @@ export function ReviewStep({
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 flex-wrap">
-                      {errors > 0 && <span className="badge badge-error">{errors} err</span>}
-                      {warns > 0 && <span className="badge badge-warn">{warns} warn</span>}
-                      {errors === 0 && warns === 0 && !c.archived && <span className="badge badge-ok">OK</span>}
+                      {errorIssues.map((issue, i) => (
+                        <ErrorBadge key={i} field={issue.field} />
+                      ))}
+                      {warnIssues.length > 0 && errorIssues.length === 0 && (
+                        <span className="badge badge-warn text-[10px]">{warnIssues.length} warn</span>
+                      )}
+                      {errorIssues.length === 0 && warnIssues.length === 0 && !c.archived && (
+                        <span className="badge badge-ok">OK</span>
+                      )}
                       {c.archived && <span className="badge badge-muted">Archived</span>}
                       {isModified && <ModifiedMarker edits={clusterEdits} />}
                       <span className="text-navy-300 text-xs ml-0.5" title="Click row to edit">✎</span>
