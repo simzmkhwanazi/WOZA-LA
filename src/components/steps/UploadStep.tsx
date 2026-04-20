@@ -444,6 +444,22 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
         )}
       </div>
 
+      {/* ── Add client manually ──────────────────────────────────────────────── */}
+      <div className="card p-4 sm:p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-navy-800">Add clients manually</h3>
+            <p className="text-sm text-navy-400 mt-0.5">
+              Enter a client record directly — no file needed.
+              {manualCount > 0 && <span className="ml-2 text-teal-600 font-medium">{manualCount} added so far</span>}
+            </p>
+          </div>
+          <button onClick={() => { setManualFields({ ...BLANK_CLIENT }); setManualError(null); setShowManual(true); }} className="btn btn-secondary text-sm flex-shrink-0">
+            + Add Client
+          </button>
+        </div>
+      </div>
+
       {/* ── Uploaded files table ─────────────────────────────────────────────── */}
       <div className="card overflow-hidden">
         <div className="px-6 py-3 border-b border-navy-100 flex items-center justify-between gap-3">
@@ -561,22 +577,6 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
             </table>
           </div>
         )}
-      </div>
-
-      {/* ── Add client manually ──────────────────────────────────────────────── */}
-      <div className="card p-4 sm:p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-navy-800">Add clients manually</h3>
-            <p className="text-sm text-navy-400 mt-0.5">
-              Enter a client record directly — no file needed.
-              {manualCount > 0 && <span className="ml-2 text-teal-600 font-medium">{manualCount} added so far</span>}
-            </p>
-          </div>
-          <button onClick={() => { setManualFields({ ...BLANK_CLIENT }); setManualError(null); setShowManual(true); }} className="btn btn-secondary text-sm flex-shrink-0">
-            + Add Client
-          </button>
-        </div>
       </div>
 
       {/* ── Manual client modal ─────────────────────────────────────────────── */}
