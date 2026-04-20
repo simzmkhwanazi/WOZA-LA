@@ -603,22 +603,187 @@ export function DashboardStep({
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   async function downloadPDF() {
-    if (!dashboardRef.current) return;
     setDownloading(true);
     try {
+      // Fetch firm profile for the cover section
+      const { data: profileData } = await supabase
+        .from('firm_profile')
+        .select('*')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+      const fp = profileData as FirmProfile | null;
+
+      const active = clusters.filter((c) => !c.archived);
+
+      // Build chart data inline (same logic as ClientsTab)
+      const entityCounts: Record<string, number> = {};
+      const statusCounts: Record<string, number> = {};
+      const yearEndCounts: Record<string, number> = {};
+      for (const c of active) {
+        const m = c.merged as Record<string, unknown>;
+        const et = String(m.entity_type ?? 'Unknown');
+        entityCounts[et] = (entityCounts[et] ?? 0) + 1;
+        const st = String(m.status ?? 'Unknown');
+        statusCounts[st] = (statusCounts[st] ?? 0) + 1;
+        const ye = String(m.year_end ?? '');
+        if (ye) yearEndCounts[ye] = (yearEndCounts[ye] ?? 0) + 1;
+      }
+      const entityRows = Object.entries(entityCounts).sort((a, b) => b[1] - a[1]);
+      const statusRows = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
+      const svcRows = SERVICE_KEYS.map((s) => ({
+        label: s.label,
+        count: active.filter((c) => {
+          const v = (c.merged as Record<string, unknown>)[s.key];
+          return v === true || v === 'TRUE';
+        }).length,
+      })).filter((r) => r.count > 0).sort((a, b) => b.count - a.count);
+
+      const dateStr = new Date().toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      // ── Build off-screen report div ──────────────────────────────────────────
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;background:#fff;font-family:system-ui,sans-serif;padding:48px;box-sizing:border-box;';
+
+      const BAR_MAX = Math.max(...entityRows.map((r) => r[1]), 1);
+      const SVC_MAX = Math.max(...svcRows.map((r) => r.count), 1);
+      const STATUS_MAX = Math.max(...statusRows.map((r) => r[1]), 1);
+      const YE_MAX = Math.max(...MONTHS_ORDER.map((m) => yearEndCounts[m] ?? 0), 1);
+
+      el.innerHTML = `
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0d9488;padding-bottom:20px;margin-bottom:28px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:3px;color:#0d9488;text-transform:uppercase;margin-bottom:4px;">Woza La · Client Intelligence Report</div>
+            <div style="font-size:28px;font-weight:700;color:#1e3a5f;">${firmName}</div>
+            ${fp?.company_name && fp.company_name !== firmName ? `<div style="font-size:13px;color:#64748b;margin-top:2px;">${fp.company_name}</div>` : ''}
+          </div>
+          <div style="text-align:right;font-size:11px;color:#94a3b8;">
+            <div>Generated ${dateStr}</div>
+            <div style="margin-top:2px;">DataGrows Internal Use Only</div>
+          </div>
+        </div>
+
+        <!-- Firm details -->
+        ${fp ? `
+        <div style="background:#f8fafc;border-radius:10px;padding:20px 24px;margin-bottom:28px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#0d9488;text-transform:uppercase;margin-bottom:14px;">Firm Details</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+            ${[
+              ['Registration Nr', fp.registration_nr],
+              ['VAT Nr', fp.vat_nr],
+              ['Industry', fp.industry_sector],
+              ['B-BBEE Level', fp.bbbee_level],
+              ['Auditor', fp.auditor_name],
+              ['Contact Nr', fp.contact_nr],
+              ['Email', fp.email],
+            ].map(([label, val]) => val ? `
+              <div>
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${label}</div>
+                <div style="font-size:12px;font-weight:600;color:#1e3a5f;">${val}</div>
+              </div>` : '').join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Stat cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px;">
+          ${[
+            ['Total Clients', stats.total, '#1e3a5f'],
+            ['Ready to Export', stats.ready, '#059669'],
+            ['With Errors', stats.errors, stats.errors > 0 ? '#dc2626' : '#94a3b8'],
+            ['Warnings', stats.warnings, stats.warnings > 0 ? '#d97706' : '#94a3b8'],
+          ].map(([label, val, color]) => `
+            <div style="background:#f8fafc;border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:32px;font-weight:800;color:${color};">${val}</div>
+              <div style="font-size:10px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">${label}</div>
+            </div>`).join('')}
+        </div>
+
+        <!-- Charts row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;">
+
+          <!-- Entity Types -->
+          <div style="background:#f8fafc;border-radius:10px;padding:20px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#0d9488;text-transform:uppercase;margin-bottom:14px;">Entity Types</div>
+            ${entityRows.slice(0, 8).map(([name, count]) => `
+              <div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#334155;margin-bottom:3px;">
+                  <span>${name}</span><span style="font-weight:600;">${count}</span>
+                </div>
+                <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                  <div style="height:100%;background:#0d9488;border-radius:3px;width:${Math.round((count / BAR_MAX) * 100)}%;"></div>
+                </div>
+              </div>`).join('')}
+          </div>
+
+          <!-- Client Status -->
+          <div style="background:#f8fafc;border-radius:10px;padding:20px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#0d9488;text-transform:uppercase;margin-bottom:14px;">Client Status</div>
+            ${statusRows.map(([name, count]) => {
+              const c = name === 'Active' ? '#059669' : name === 'Dormant' ? '#f59e0b' : name === 'Inactive' ? '#94a3b8' : '#3b82f6';
+              return `<div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#334155;margin-bottom:3px;">
+                  <span>${name}</span><span style="font-weight:600;">${count}</span>
+                </div>
+                <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                  <div style="height:100%;background:${c};border-radius:3px;width:${Math.round((count / STATUS_MAX) * 100)}%;"></div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+
+          <!-- Year-End Distribution -->
+          <div style="background:#f8fafc;border-radius:10px;padding:20px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#0d9488;text-transform:uppercase;margin-bottom:14px;">Year-End Distribution</div>
+            <div style="display:flex;align-items:flex-end;gap:5px;height:80px;">
+              ${MONTHS_ORDER.map((m) => {
+                const v = yearEndCounts[m] ?? 0;
+                const pct = YE_MAX > 0 ? Math.round((v / YE_MAX) * 100) : 0;
+                return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+                  <div style="width:100%;background:#0d9488;border-radius:2px 2px 0 0;height:${pct}%;min-height:${v > 0 ? 2 : 0}px;"></div>
+                  <div style="font-size:8px;color:#94a3b8;">${m.slice(0,3)}</div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Services Overview -->
+          <div style="background:#f8fafc;border-radius:10px;padding:20px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#0d9488;text-transform:uppercase;margin-bottom:14px;">Services Overview</div>
+            ${svcRows.slice(0, 8).map(({ label, count }) => `
+              <div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#334155;margin-bottom:3px;">
+                  <span>${label}</span><span style="font-weight:600;">${count}</span>
+                </div>
+                <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                  <div style="height:100%;background:#14b8a6;border-radius:3px;width:${Math.round((count / SVC_MAX) * 100)}%;"></div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="border-top:1px solid #e2e8f0;padding-top:12px;font-size:9px;color:#94a3b8;display:flex;justify-content:space-between;">
+          <span>Woza La — DataGrows Client Onboarding Tool</span>
+          <span>Confidential — Internal Use Only</span>
+        </div>
+      `;
+
+      document.body.appendChild(el);
+
       const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
         import('html2canvas'),
         import('jspdf'),
       ]);
-      const canvas = await html2canvas(dashboardRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#f9fafb',
-      });
+
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      document.body.removeChild(el);
+
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width / 2, canvas.height / 2] });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-      pdf.save(`${firmName.replace(/[^a-z0-9_-]/gi, '_')}_dashboard.pdf`);
+      const W = canvas.width / 2;
+      const H = canvas.height / 2;
+      const pdf = new jsPDF({ orientation: W > H ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
+      pdf.addImage(imgData, 'PNG', 0, 0, W, H);
+      pdf.save(`${firmName.replace(/[^a-z0-9_-]/gi, '_')}_report.pdf`);
     } finally {
       setDownloading(false);
     }
@@ -672,7 +837,7 @@ export function DashboardStep({
   if (loading) return <p className="text-navy-500 py-6 text-center">Loading dashboard…</p>;
 
   return (
-    <div className="space-y-4" ref={dashboardRef}>
+    <div className="space-y-4">
       {building && (
         <div className="text-xs text-teal-700 bg-teal-50 px-3 py-2 rounded">
           ◷ Consolidating firm data from uploaded sources…
