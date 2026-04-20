@@ -331,26 +331,6 @@ export function ReviewStep({
         </p>
       </div>
 
-      {/* ── Firm data quick-links ────────────────────────────────────────────── */}
-      {onOpenFirmSlideOver && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-navy-500 font-medium">Firm data:</span>
-          {([
-            ['company',   'Company Info'],
-            ['employees', 'Employees'],
-            ['suppliers', 'Suppliers'],
-          ] as [FirmTab, string][]).map(([tab, label]) => (
-            <button
-              key={tab}
-              onClick={() => onOpenFirmSlideOver(tab)}
-              className="btn btn-ghost text-xs border border-navy-200 hover:border-teal-400 hover:text-teal-700"
-            >
-              {label} ↗
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* ── Filter bar ───────────────────────────────────────────────────────── */}
       <div className="-mx-4 sm:mx-0">
         <div className="flex overflow-x-auto gap-2 px-4 sm:px-0 pb-1 scrollbar-none items-center">
