@@ -14,7 +14,7 @@ import { FirmDataSlideOver, type FirmTab } from '@/components/FirmDataSlideOver'
 
 // Sub-tabs within each main step
 type SubTab = 'upload' | 'mapping' | 'dedup' | 'review' | 'dashboard' | 'export' | 'audit';
-type MainStep = 'import' | 'review' | 'export';
+type MainStep = 'import' | 'clients' | 'dashboard' | 'export';
 
 interface SessionDto {
   id: string;
@@ -30,7 +30,8 @@ interface SessionDto {
 // Which main step each sub-tab belongs to
 const SUB_TO_MAIN: Record<SubTab, MainStep> = {
   upload: 'import', mapping: 'import', dedup: 'import',
-  review: 'review', dashboard: 'review',
+  review: 'clients',
+  dashboard: 'dashboard',
   export: 'export', audit: 'export',
 };
 
@@ -63,9 +64,10 @@ function statusColor(status: string): string {
 }
 
 const MAIN_STEPS: { key: MainStep; label: string; icon: string; defaultSub: SubTab }[] = [
-  { key: 'import', label: 'Import',  icon: '📥', defaultSub: 'upload' },
-  { key: 'review', label: 'Review',  icon: '✓',  defaultSub: 'review' },
-  { key: 'export', label: 'Export',  icon: '📤', defaultSub: 'export' },
+  { key: 'import',    label: 'Import',     icon: '📥', defaultSub: 'upload' },
+  { key: 'clients',   label: 'Clients',    icon: '👥', defaultSub: 'review' },
+  { key: 'dashboard', label: 'Dashboard',  icon: '📊', defaultSub: 'dashboard' },
+  { key: 'export',    label: 'Export',     icon: '📤', defaultSub: 'export' },
 ];
 
 type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
@@ -232,28 +234,6 @@ export default function SessionPage() {
               );
             })}
 
-            {/* Review sub-nav — visible when on review main step */}
-            {activeMain === 'review' && (
-              <div className="mt-1 ml-11">
-                <button
-                  onClick={() => goToTab('review')}
-                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
-                    subTab === 'review' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Clients
-                </button>
-                <button
-                  onClick={() => goToTab('dashboard')}
-                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
-                    subTab === 'dashboard' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Dashboard
-                </button>
-              </div>
-            )}
-
           </nav>
         </aside>
 
@@ -281,7 +261,7 @@ export default function SessionPage() {
                 initialFilter={reviewFilter}
                 onOpenFirmSlideOver={openFirmSlideOver}
                 onGoToImport={() => goToTab('upload')}
-                onProceedToExport={() => goToTab('export')}
+                onProceedToExport={() => goToTab('dashboard')}
               />
             )}
             {subTab === 'dashboard' && (

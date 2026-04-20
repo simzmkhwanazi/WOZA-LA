@@ -654,27 +654,36 @@ export function DashboardStep({
         ))}
       </div>
 
-      {/* Generate report shortcut */}
+      {/* Header row */}
       <div className="flex items-center justify-between px-1">
         <p className="text-sm text-navy-500">
           <strong className="text-navy-700">{firmName}</strong> · Client Intelligence Dashboard
         </p>
-        {onOpenFirmSlideOver && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => onOpenFirmSlideOver('company')}
-              className="btn btn-ghost text-xs border border-navy-200"
-            >
-              Company Info ↗
-            </button>
-            <button
-              onClick={() => onOpenFirmSlideOver('employees')}
-              className="btn btn-ghost text-xs border border-navy-200"
-            >
-              Employees ↗
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          {onOpenFirmSlideOver && (
+            <>
+              <button
+                onClick={() => onOpenFirmSlideOver('company')}
+                className="btn btn-ghost text-xs border border-navy-200"
+              >
+                Company Info ↗
+              </button>
+              <button
+                onClick={() => onOpenFirmSlideOver('employees')}
+                className="btn btn-ghost text-xs border border-navy-200"
+              >
+                Employees ↗
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => window.print()}
+            className="btn btn-secondary text-xs"
+            title="Save dashboard as PDF via browser print"
+          >
+            🖨 Export PDF
+          </button>
+        </div>
       </div>
 
       {/* Sub-tabs */}
