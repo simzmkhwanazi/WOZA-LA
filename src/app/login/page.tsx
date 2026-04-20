@@ -14,6 +14,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Forgot password state
+  const [showForgot, setShowForgot] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -32,6 +39,18 @@ export default function LoginPage() {
 
     router.push('/');
     router.refresh();
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError(null);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetLoading(false);
+    if (err) { setResetError(err.message); return; }
+    setResetSent(true);
   }
 
   return (
@@ -62,7 +81,16 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Password</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-navy-700">Password</label>
+                <button
+                  type="button"
+                  onClick={() => { setShowForgot(true); setResetEmail(email); setResetSent(false); setResetError(null); }}
+                  className="text-xs text-teal hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -117,6 +145,53 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* ── Forgot password modal ── */}
+      {showForgot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowForgot(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            {resetSent ? (
+              <div className="text-center space-y-4">
+                <div className="text-4xl">📬</div>
+                <h2 className="text-lg font-semibold text-navy-800">Check your email</h2>
+                <p className="text-sm text-navy-500">
+                  We sent a password reset link to <strong>{resetEmail}</strong>.<br />
+                  Click the link in the email to set a new password.
+                </p>
+                <button onClick={() => setShowForgot(false)} className="btn btn-primary w-full justify-center">
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={(e) => void handleResetPassword(e)} className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-navy-800">Reset your password</h2>
+                  <p className="text-sm text-navy-400 mt-0.5">Enter your email and we'll send you a reset link.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    placeholder="you@datagrows.com"
+                    className="input"
+                  />
+                </div>
+                {resetError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{resetError}</p>}
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setShowForgot(false)} className="btn btn-ghost flex-1 justify-center">Cancel</button>
+                  <button type="submit" disabled={resetLoading || !resetEmail} className="btn btn-primary flex-1 justify-center">
+                    {resetLoading ? 'Sending…' : 'Send Reset Link'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
