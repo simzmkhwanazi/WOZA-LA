@@ -217,25 +217,65 @@ export function MappingStep({
       appendLog(`${merged.length} final client records`);
       setProgress(88);
 
-      // ── One-man-band auto-fill ───────────────────────────────────────────────
-      // If the firm uploaded an employee list with exactly 1 person, auto-assign
-      // that person to all staff role fields that are still blank.
-      const staffFields = ['partner', 'manager', 'accountant', 'accounting_role', 'cipc_role', 'tax_role'];
-      const employeeRecords = allMapped.filter((r) => r.source === 'employees');
-      const uniqueNames = [
-        ...new Set(
-          employeeRecords
-            .map((r) => String((r.data as Record<string, unknown>).client_name ?? (r.data as Record<string, unknown>).primary_contact ?? '').trim())
-            .filter(Boolean),
-        ),
+      // ── Staff auto-fill from employee list ──────────────────────────────────
+      // Accountant is the default/essential role. Rules:
+      //   1. One-man band (1 employee)  → assign that person as accountant only.
+      //   2. Multiple employees         → use role keywords detected in their record
+      //      fields to route each person to the matching staff field; anyone with
+      //      no detectable role gets assigned as accountant if that field is blank.
+      const ROLE_PATTERNS: Array<[RegExp, string]> = [
+        [/\bpartner\b|\bdirector\b|\bowner\b|\bprincipal\b/i,              'partner'],
+        [/\bmanager\b|\bsenior\s*manager\b|\bteam\s*lead\b/i,              'manager'],
+        [/\bcipc\b|\bsecretarial\b|\bcompany\s*secret/i,                   'cipc_role'],
+        [/\bfinancials?\b|\bfinancial\s*statement/i,                       'financials_role'],
+        [/\bhr\b|\bhuman\s*resourc|\bpayroll\b/i,                          'hr_role'],
+        [/\btax\b|\bsars\b|\btaxation\b/i,                                 'tax_role'],
+        [/\baccounting\b|\bbookkeep|\baccounts?\s*role\b/i,                'accounting_role'],
+        [/\baccountant\b|\bclerk\b|\bbookkeeper\b/i,                       'accountant'],
       ];
+
+      function detectRole(data: Record<string, unknown>): string {
+        const nameFields = new Set(['client_name', 'primary_contact']);
+        const text = Object.entries(data)
+          .filter(([k]) => !nameFields.has(k))
+          .map(([, v]) => String(v ?? ''))
+          .join(' ');
+        for (const [pattern, field] of ROLE_PATTERNS) {
+          if (pattern.test(text)) return field;
+        }
+        return 'accountant'; // default
+      }
+
+      const employeeRecords = allMapped.filter((r) => r.source === 'employees');
+      const employeeEntries = employeeRecords
+        .map((r) => {
+          const d = r.data as Record<string, unknown>;
+          const name = String(d.client_name ?? d.primary_contact ?? '').trim();
+          return name ? { name, role: detectRole(d) } : null;
+        })
+        .filter((e): e is { name: string; role: string } => e !== null);
+
+      const uniqueNames = [...new Set(employeeEntries.map((e) => e.name))];
+
       if (uniqueNames.length === 1) {
         const soloName = uniqueNames[0];
-        appendLog(`One-man band detected — auto-assigning "${soloName}" to all staff roles`);
+        appendLog(`One-man band — assigning "${soloName}" as accountant`);
         for (const rec of merged) {
           const m = rec as Record<string, unknown>;
-          for (const f of staffFields) {
-            if (!m[f]) m[f] = soloName;
+          if (!m.accountant) m.accountant = soloName;
+        }
+      } else if (uniqueNames.length > 1) {
+        // Build role → name map (first match wins per role)
+        const roleMap: Record<string, string> = {};
+        for (const { name, role } of employeeEntries) {
+          if (!roleMap[role]) roleMap[role] = name;
+        }
+        const roles = Object.keys(roleMap).join(', ');
+        appendLog(`${uniqueNames.length} employees detected — assigning by role (${roles})`);
+        for (const rec of merged) {
+          const m = rec as Record<string, unknown>;
+          for (const [field, name] of Object.entries(roleMap)) {
+            if (!m[field]) m[field] = name;
           }
         }
       }
