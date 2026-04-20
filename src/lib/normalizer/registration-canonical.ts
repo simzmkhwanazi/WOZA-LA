@@ -22,11 +22,18 @@ export function canonicaliseRegistrationNr(v: unknown): string {
   // Strip all whitespace
   const clean = s.replace(/\s+/g, '');
 
+  // CK-series Close Corporation (full CK prefix): CK2022/76562/23 or CK202276562
+  const ckMatch = clean.match(/^[Cc][Kk](\d{4})[/\-]?(\d{6})[/\-]?(\d{2})?$/);
+  if (ckMatch) {
+    const [, year, serial, suffix] = ckMatch;
+    return `${year}/${serial}/${suffix ?? '23'}`;
+  }
+
   // K-series Close Corporation: K2004/876646 or K200487664608
   const kMatch = clean.match(/^[Kk](\d{4})[/\-]?(\d{6})[/\-]?(\d{2})?$/);
   if (kMatch) {
-    const [, year, serial] = kMatch;
-    return `${year}/${serial}/08`;
+    const [, year, serial, suffix] = kMatch;
+    return `${year}/${serial}/${suffix ?? '08'}`;
   }
 
   // Already in YYYY/NNNNNN/TT form

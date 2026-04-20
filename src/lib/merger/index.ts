@@ -76,6 +76,11 @@ export function mergeCluster(cluster: Cluster): ClientRecord {
     }
   }
 
+  // Status always defaults to Active — never leave it blank
+  if (!merged.status) (merged as Record<string, unknown>).status = 'Active';
+  // Year-end always defaults to February
+  if (!merged.year_end) (merged as Record<string, unknown>).year_end = 'February';
+
   merged._sources = Array.from(sourcesSet);
   if (Object.keys(conflicts).length > 0) merged._conflicts = conflicts;
   merged._cluster_id = cluster.id;

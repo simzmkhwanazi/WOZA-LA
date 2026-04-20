@@ -190,6 +190,47 @@ export function idNumberKey(v: unknown): string {
   return digits;
 }
 
+/** SARS income tax number matching key — digits only, typically 10 digits. */
+export function taxNumberKey(v: unknown): string {
+  return String(v ?? '').replace(/\D+/g, '');
+}
+
+/** VAT registration number matching key — digits only, typically 10 digits starting with 4. */
+export function vatNumberKey(v: unknown): string {
+  return String(v ?? '').replace(/\D+/g, '');
+}
+
+/**
+ * Email match key — lowercase, trimmed, first email only (comma-separated lists).
+ * "John@AceTrading.co.za" → "john@acetrading.co.za"
+ */
+export function emailMatchKey(v: unknown): string {
+  const s = String(v ?? '').toLowerCase().trim();
+  // Take first address only from comma/semicolon-separated lists
+  return s.split(/[,;]/)[0]?.trim() ?? '';
+}
+
+/**
+ * SA phone number match key — last 9 digits (strips country code, spaces, dashes).
+ * +27 82 555 1001, 082 555 1001, 27825551001 → "825551001"
+ */
+export function phoneMatchKey(v: unknown): string {
+  const digits = String(v ?? '').replace(/\D+/g, '');
+  if (!digits) return '';
+  // Strip leading 27 (country code) or leading 0
+  const local = digits.startsWith('27') ? digits.slice(2) : digits.startsWith('0') ? digits.slice(1) : digits;
+  // Must be exactly 9 digits (SA mobile/landline without leading 0)
+  return local.length === 9 ? local : '';
+}
+
+/**
+ * Bank account match key — digits only.
+ * Minimum 6 digits to avoid matching partial/garbage values.
+ */
+export function bankAccountKey(v: unknown): string {
+  return String(v ?? '').replace(/\D+/g, '');
+}
+
 // -----------------------------------------------------------------------------
 // Email — split & validate comma-separated list, also split concatenated
 // emails like "a@x.comb@y.com" by inserting commas before each second @
@@ -308,8 +349,17 @@ export function normalizeRecord(record: Record<string, unknown>): ClientRecord {
     if (inferred) (out as Record<string, unknown>).entity_type = inferred;
   }
 
-  // Sole props and individuals always have a February year-end in SA
-  if (!out.year_end && (out.entity_type === 'SOLE PROP' || out.entity_type === 'INDIVIDUAL')) {
+  // Status always defaults to Active — clerk can override manually
+  if (!out.status) {
+    (out as Record<string, unknown>).status = 'Active';
+  }
+
+  // Sole props and individuals always have a February year-end in SA — force it.
+  // All other entity types default to February too if not provided, as most SA
+  // companies align with the tax year ending 28/29 Feb.
+  if (out.entity_type === 'SOLE PROP' || out.entity_type === 'INDIVIDUAL') {
+    (out as Record<string, unknown>).year_end = 'February';
+  } else if (!out.year_end) {
     (out as Record<string, unknown>).year_end = 'February';
   }
 

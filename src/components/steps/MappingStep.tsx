@@ -223,27 +223,51 @@ export function MappingStep({
       //   2. Multiple employees         → use role keywords detected in their record
       //      fields to route each person to the matching staff field; anyone with
       //      no detectable role gets assigned as accountant if that field is blank.
+      // Specific compound titles MUST come before generic "manager" — otherwise
+      // "Tax Manager" matches \bmanager\b before reaching tax_role, etc.
       const ROLE_PATTERNS: Array<[RegExp, string]> = [
-        [/\bpartner\b|\bdirector\b|\bowner\b|\bprincipal\b/i,              'partner'],
-        [/\bmanager\b|\bsenior\s*manager\b|\bteam\s*lead\b/i,              'manager'],
-        [/\bcipc\b|\bsecretarial\b|\bcompany\s*secret/i,                   'cipc_role'],
-        [/\bfinancials?\b|\bfinancial\s*statement/i,                       'financials_role'],
-        [/\bhr\b|\bhuman\s*resourc|\bpayroll\b/i,                          'hr_role'],
-        [/\btax\b|\bsars\b|\btaxation\b/i,                                 'tax_role'],
-        [/\baccounting\b|\bbookkeep|\baccounts?\s*role\b/i,                'accounting_role'],
-        [/\baccountant\b|\bclerk\b|\bbookkeeper\b/i,                       'accountant'],
+        // ── Compound / specific titles first ───────────────────────────────
+        [/managing\s*partner|senior\s*partner/i,                                     'partner'],
+        [/tax\s*(manager|consultant|partner|specialist|advisor|officer|practitioner)/i,'tax_role'],
+        [/accounting\s*(manager|specialist|officer)\b|bookkeep(ing\s*(manager|role))?/i,'accounting_role'],
+        [/audit\s*(manager|partner|director|senior)\b/i,                             'financials_role'],
+        [/payroll\s*(manager|administrator|officer|specialist)\b/i,                  'hr_role'],
+        [/hr\s*(manager|officer|specialist|director)\b|human\s*resourc.*manager/i,   'hr_role'],
+        [/cipc\s*(manager|officer)\b|secretarial\s*(manager|officer)\b/i,            'cipc_role'],
+        // ── Generic titles (fallbacks) ──────────────────────────────────────
+        [/\bpartner\b|\bdirector\b|\bowner\b|\bprincipal\b/i,                        'partner'],
+        [/\bcipc\b|\bsecretarial\b|\bcompany\s*secret/i,                             'cipc_role'],
+        [/\bhr\b|\bhuman\s*resourc|\bpayroll\b/i,                                    'hr_role'],
+        [/\btax\b|\bsars\b|\btaxation\b/i,                                           'tax_role'],
+        [/\baccounting\b|\bbookkeep|\baccounts?\s*role\b/i,                          'accounting_role'],
+        [/\baudit\b|\bfinancials?\b|\bfinancial\s*statement/i,                       'financials_role'],
+        [/\baccountant\b|\bclerk\b|\bbookkeeper\b/i,                                 'accountant'],
+        [/\bmanager\b|\bsenior\s*manager\b|\bteam\s*lead\b/i,                        'manager'],
       ];
 
       function detectRole(data: Record<string, unknown>): string {
+        // Scan dedicated role/title fields first for the strongest signal,
+        // then fall back to scanning all field values combined.
+        const TITLE_KEYS = new Set(['accountant', 'job_title', 'role', 'position', 'designation', 'department']);
         const nameFields = new Set(['client_name', 'primary_contact']);
-        const text = Object.entries(data)
+
+        // Pass 1: title/role fields only
+        const titleText = Object.entries(data)
+          .filter(([k]) => TITLE_KEYS.has(k))
+          .map(([, v]) => String(v ?? ''))
+          .join(' ');
+        for (const [pattern, field] of ROLE_PATTERNS) {
+          if (titleText && pattern.test(titleText)) return field;
+        }
+        // Pass 2: all fields (catches department values, notes, etc.)
+        const fullText = Object.entries(data)
           .filter(([k]) => !nameFields.has(k))
           .map(([, v]) => String(v ?? ''))
           .join(' ');
         for (const [pattern, field] of ROLE_PATTERNS) {
-          if (pattern.test(text)) return field;
+          if (pattern.test(fullText)) return field;
         }
-        return 'accountant'; // default
+        return 'accountant';
       }
 
       const employeeRecords = allMapped.filter((r) => r.source === 'employees');
@@ -277,6 +301,17 @@ export function MappingStep({
           for (const [field, name] of Object.entries(roleMap)) {
             if (!m[field]) m[field] = name;
           }
+        }
+
+        // Guarantee: every non-archived record must have an accountant
+        const fallbackAccountant = roleMap['accountant'] ?? employeeEntries[0]?.name;
+        if (fallbackAccountant) {
+          let filled = 0;
+          for (const rec of merged) {
+            const m = rec as Record<string, unknown>;
+            if (!m._archived && !m.accountant) { m.accountant = fallbackAccountant; filled++; }
+          }
+          if (filled > 0) appendLog(`Filled accountant fallback ("${fallbackAccountant}") on ${filled} record(s)`);
         }
       }
 
@@ -381,8 +416,8 @@ export function MappingStep({
           <div>
             <h3 className="text-lg font-semibold text-navy-800">Automated mapping &amp; pipeline</h3>
             <p className="text-sm text-navy-500 mt-0.5">
-              Woza La maps columns automatically using AI, then runs the full pipeline.
-              No manual input needed.
+              Upload your files and Woza La handles the rest — columns are detected,
+              matched, and processed end-to-end without any manual input.
             </p>
           </div>
           {(phase === 'done' || phase === 'already_done') && (

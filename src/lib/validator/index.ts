@@ -95,7 +95,13 @@ export function validateRecord(record: ClientRecord): ValidationResult {
   const issues: Issue[] = [];
 
   // Hard-required
+  const isSolePropOrIndividual =
+    record.entity_type === 'SOLE PROP' || record.entity_type === 'INDIVIDUAL';
   for (const field of REQUIRED_FIELDS) {
+    // year_end always defaults to February — never a blocking error
+    if (field.key === 'year_end') continue;
+    // status always defaults to Active — never a blocking error
+    if (field.key === 'status') continue;
     if (isEmpty((record as Record<string, unknown>)[field.key])) {
       issues.push({
         severity: 'error',
@@ -108,7 +114,7 @@ export function validateRecord(record: ClientRecord): ValidationResult {
   // Conditional requirements
   // id_number is promoted to a blocking error for individuals — DataGrows uses
   // it to auto-calculate DOB and schedule tasks correctly.
-  const CONDITIONAL_ERROR_FIELDS = new Set(['id_number', 'registration_nr', 'trust_deed_number']);
+  const CONDITIONAL_ERROR_FIELDS = new Set(['id_number', 'registration_nr']);
   for (const field of DATAGROWS_FIELDS) {
     if (field.conditionalRequired && field.conditionalRequired(record as Record<string, unknown>)) {
       if (isEmpty((record as Record<string, unknown>)[field.key])) {

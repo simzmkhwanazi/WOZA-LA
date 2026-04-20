@@ -6,6 +6,7 @@ import { DATAGROWS_FIELDS, FIELD_BY_COL, REQUIRED_FIELDS, type FieldDef, type Cl
 import { SOURCE_LABELS, type SourceType } from '@/lib/schema/sources';
 import { validateRecord } from '@/lib/validator';
 import { humanizeIssue } from '@/lib/validator/humanize';
+import type { PendingNameMatch } from '@/lib/matcher';
 
 // ── Field groups — every column accounted for ────────────────────────────────
 const FIELD_GROUPS: { label: string; cols: string[] }[] = [
@@ -202,6 +203,23 @@ export function ReviewStep({
   const editPanelRef = useRef<HTMLDivElement>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Pending dedup suggestions
+  const [pendingMatches, setPendingMatches] = useState<PendingNameMatch[]>([]);
+  const [dedupSaving, setDedupSaving] = useState(false);
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null); // cluster DB id with open match card
+
+  // Column header filters
+  const [filterEntityType, setFilterEntityType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterSources, setFilterSources] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkField, setBulkField] = useState('accountant');
+  const [bulkValue, setBulkValue] = useState('');
+  const [bulkApplying, setBulkApplying] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
 
@@ -210,14 +228,49 @@ export function ReviewStep({
       .from('clusters')
       .select('id, merged, sources, archived, archive_reason, primary_key_value')
       .eq('session_id', sessionId);
-    setClusters((clusterData as ClusterRow[]) ?? []);
 
-    // Load session's last_exported_at for modified-after-export markers
+    // Backfill: any cluster with no status / year_end / accountant gets defaults applied and saved
+    const rows = (clusterData as ClusterRow[]) ?? [];
+
+    // Fetch first accountant from firm_employees for this session (fallback for missing accountant)
+    let fallbackAccountant: string | null = null;
+    const { data: empData } = await supabase
+      .from('firm_employees')
+      .select('name, dg_roles, job_title')
+      .eq('session_id', sessionId)
+      .limit(50);
+    if (empData && empData.length > 0) {
+      type EmpRow = { name: string; dg_roles: string[] | null; job_title: string | null };
+      const emps = empData as EmpRow[];
+      // Prefer someone with 'accountant' in dg_roles, else first employee
+      const acctEmp = emps.find((e) => e.dg_roles?.includes('accountant')) ?? emps[0];
+      fallbackAccountant = acctEmp?.name ?? null;
+    }
+
+    const needsBackfill = rows.filter((r) => {
+      const m = r.merged as Record<string, unknown>;
+      return (!m.status || !m.year_end || (!r.archived && !m.accountant && fallbackAccountant));
+    });
+    if (needsBackfill.length > 0) {
+      await Promise.all(needsBackfill.map((r) => {
+        const m = { ...(r.merged as Record<string, unknown>) };
+        if (!m.status) m.status = 'Active';
+        if (!m.year_end) m.year_end = 'February';
+        if (!r.archived && !m.accountant && fallbackAccountant) m.accountant = fallbackAccountant;
+        r.merged = m as ClusterRow['merged'];
+        return supabase.from('clusters').update({ merged: m }).eq('id', r.id);
+      }));
+    }
+
+    setClusters(rows);
+
+    // Load session data — last_exported_at + pending dedup suggestions
     const { data: sessionData } = await supabase
       .from('sessions')
-      .select('last_exported_at')
+      .select('last_exported_at, pending_name_matches')
       .eq('id', sessionId)
       .single();
+    setPendingMatches((sessionData?.pending_name_matches as PendingNameMatch[] | null) ?? []);
     const exportedAt = sessionData?.last_exported_at ? new Date(sessionData.last_exported_at) : null;
     setLastExportedAt(exportedAt);
 
@@ -266,21 +319,61 @@ export function ReviewStep({
   }, [clusters]);
 
   const filtered = useMemo(() => {
+    let base: typeof decorated;
     switch (filter) {
-      case 'ready':
-        return decorated.filter((c) => !c.archived && c.validation.ok);
-      case 'errors':
-        return decorated.filter((c) => !c.archived && c.validation.issues.some((i) => i.severity === 'error'));
-      case 'warnings':
-        return decorated.filter((c) => !c.archived && c.validation.issues.some((i) => i.severity === 'warning'));
-      case 'archived':
-        return decorated.filter((c) => c.archived);
-      case 'dormant':
-        return decorated.filter((c) => c.merged.status === 'Dormant');
-      default:
-        return decorated;
+      case 'ready':    base = decorated.filter((c) => !c.archived && c.validation.ok); break;
+      case 'errors':   base = decorated.filter((c) => !c.archived && c.validation.issues.some((i) => i.severity === 'error')); break;
+      case 'warnings': base = decorated.filter((c) => !c.archived && c.validation.issues.some((i) => i.severity === 'warning')); break;
+      case 'archived': base = decorated.filter((c) => c.archived); break;
+      case 'dormant':  base = decorated.filter((c) => c.merged.status === 'Dormant'); break;
+      default:         base = decorated; break;
     }
-  }, [decorated, filter]);
+    if (filterEntityType) {
+      base = base.filter((c) => String(c.merged.entity_type ?? '') === filterEntityType);
+    }
+    if (filterStatus) {
+      base = base.filter((c) => String(c.merged.status ?? '') === filterStatus);
+    }
+    if (filterSources) {
+      base = base.filter((c) => (c.sources ?? []).includes(filterSources));
+    }
+    if (filterSearch.trim()) {
+      const q = filterSearch.trim().toLowerCase();
+      base = base.filter((c) =>
+        String(c.merged.client_name ?? '').toLowerCase().includes(q) ||
+        String(c.merged.trading_name ?? '').toLowerCase().includes(q),
+      );
+    }
+    return base;
+  }, [decorated, filter, filterEntityType, filterStatus, filterSources, filterSearch]);
+
+  // Unique values for column header filter dropdowns
+  const entityTypeOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const c of decorated) { const et = String(c.merged.entity_type ?? ''); if (et) seen.add(et); }
+    return Array.from(seen).sort();
+  }, [decorated]);
+
+  const statusOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const c of decorated) { const s = String(c.merged.status ?? ''); if (s) seen.add(s); }
+    return Array.from(seen).sort();
+  }, [decorated]);
+
+  const sourcesOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const c of decorated) { for (const s of (c.sources ?? [])) seen.add(s); }
+    return Array.from(seen).sort();
+  }, [decorated]);
+
+  const hasColumnFilters = !!(filterEntityType || filterStatus || filterSources || filterSearch);
+
+  // Quick lookup: cluster local id → pending match
+  const pendingMatchByLocalId = useMemo(() => {
+    const map = new Map<string, PendingNameMatch>();
+    for (const m of pendingMatches) map.set(m.orphanClusterId, m);
+    return map;
+  }, [pendingMatches]);
 
   const counts = useMemo(() => ({
     all: decorated.length,
@@ -323,6 +416,80 @@ export function ReviewStep({
     savedTimerRef.current = setTimeout(() => setSavedField(null), 1500);
   }
 
+  async function bulkUpdateField(fieldKey: string, value: unknown) {
+    setBulkApplying(true);
+    for (const id of selectedIds) {
+      await updateField(id, fieldKey, value);
+    }
+    setSelectedIds(new Set());
+    setBulkValue('');
+    setBulkApplying(false);
+  }
+
+  async function bulkMergeMatches(ids: Set<string>) {
+    setBulkApplying(true);
+    for (const dbId of ids) {
+      const cluster = clusters.find((c) => c.id === dbId);
+      if (!cluster) continue;
+      const localId = (cluster.merged as Record<string, unknown>)._cluster_id as string | undefined;
+      if (!localId) continue;
+      const match = pendingMatchByLocalId.get(localId);
+      if (!match) continue;
+      await acceptDedupMatch(match);
+    }
+    setSelectedIds(new Set());
+    setBulkApplying(false);
+  }
+
+  async function acceptDedupMatch(match: PendingNameMatch) {
+    setDedupSaving(true);
+    // Build local-id → supabase-id map
+    const idMap = new Map<string, string>();
+    for (const c of clusters) {
+      const localId = (c.merged as Record<string, unknown>)._cluster_id as string | undefined;
+      if (localId) idMap.set(localId, c.id);
+    }
+    const orphanDbId = idMap.get(match.orphanClusterId);
+    const candidateDbId = idMap.get(match.candidateClusterId);
+    if (orphanDbId && candidateDbId) {
+      const orphanRow = clusters.find((c) => c.id === orphanDbId);
+      const candidateRow = clusters.find((c) => c.id === candidateDbId);
+      if (orphanRow && candidateRow) {
+        // Merge: candidate fields win, orphan fills blanks
+        const mergedRecord: Record<string, unknown> = { ...(orphanRow.merged as Record<string, unknown>) };
+        for (const [k, v] of Object.entries(candidateRow.merged as Record<string, unknown>)) {
+          if (v !== null && v !== undefined && v !== '') mergedRecord[k] = v;
+        }
+        const mergedSources = Array.from(new Set([...(candidateRow.sources ?? []), ...(orphanRow.sources ?? [])]));
+        await supabase.from('clusters').update({ merged: mergedRecord, sources: mergedSources }).eq('id', candidateDbId);
+        await supabase.from('clusters').delete().eq('id', orphanDbId);
+        setPendingMatches((prev) => prev.filter((m) => m.orphanClusterId !== match.orphanClusterId));
+        setEditing(candidateDbId);
+      }
+    }
+    setDedupSaving(false);
+    await load();
+  }
+
+  async function rejectDedupMatch(match: PendingNameMatch) {
+    setDedupSaving(true);
+    const idMap = new Map<string, string>();
+    for (const c of clusters) {
+      const localId = (c.merged as Record<string, unknown>)._cluster_id as string | undefined;
+      if (localId) idMap.set(localId, c.id);
+    }
+    const orphanDbId = idMap.get(match.orphanClusterId);
+    if (orphanDbId) {
+      await supabase.from('clusters').update({
+        archived: true,
+        archive_reason: `Kept separate from "${match.candidateName}" — confirmed not a duplicate.`,
+      }).eq('id', orphanDbId);
+      setPendingMatches((prev) => prev.filter((m) => m.orphanClusterId !== match.orphanClusterId));
+    }
+    setDedupSaving(false);
+    await load();
+  }
+
   if (loading) return <p className="text-navy-500">Loading review data…</p>;
 
   if (clusters.length === 0) {
@@ -342,11 +509,6 @@ export function ReviewStep({
       </div>
     );
   }
-
-  // Preview columns: Name, Entity Type, Reg Nr, Tax Nr, Status
-  const preview = DATAGROWS_FIELDS.filter((f) =>
-    ['client_name', 'entity_type', 'registration_nr', 'tax_nr', 'status'].includes(f.key),
-  );
 
   return (
     <div className="space-y-4">
@@ -372,13 +534,32 @@ export function ReviewStep({
           ] as [Filter, string, string, string][]).map(([k, label, activeClass, inactiveClass]) => (
             <button
               key={k}
-              onClick={() => setFilter(k)}
+              onClick={() => { setFilter(k); setSelectedIds(new Set()); }}
               className={`px-4 py-2 rounded-xl text-sm font-semibold flex-shrink-0 transition-colors ${filter === k ? activeClass : inactiveClass}`}
             >
               {label}
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── Name search + clear ──────────────────────────────────────────────── */}
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          className="input text-sm h-9 flex-1"
+          placeholder="Search by client or trading name…"
+          value={filterSearch}
+          onChange={(e) => { setFilterSearch(e.target.value); setSelectedIds(new Set()); }}
+        />
+        {hasColumnFilters && (
+          <button
+            className="text-xs text-navy-400 underline hover:text-navy-600 shrink-0"
+            onClick={() => { setFilterEntityType(''); setFilterStatus(''); setFilterSources(''); setFilterSearch(''); setSelectedIds(new Set()); }}
+          >
+            Clear all filters
+          </button>
+        )}
       </div>
 
       {/* ── Continue bar (top) ───────────────────────────────────────────────── */}
@@ -394,6 +575,77 @@ export function ReviewStep({
         </div>
       )}
 
+      {/* ── Bulk-edit bar ────────────────────────────────────────────────────── */}
+      {selectedIds.size > 0 && (() => {
+        const field = DATAGROWS_FIELDS.find((f) => f.key === bulkField);
+        // Count selected rows that have a pending match suggestion
+        const bulkMatchCount = Array.from(selectedIds).filter((dbId) => {
+          const cluster = clusters.find((c) => c.id === dbId);
+          if (!cluster) return false;
+          const localId = (cluster.merged as Record<string, unknown>)._cluster_id as string | undefined;
+          return localId ? pendingMatchByLocalId.has(localId) : false;
+        }).length;
+        return (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-teal-50 border border-teal-200 rounded-xl text-sm">
+            <span className="font-semibold text-teal-800 shrink-0">
+              {selectedIds.size} selected
+            </span>
+            {bulkMatchCount > 0 && (
+              <button
+                className="btn text-sm shrink-0 bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                disabled={bulkApplying}
+                onClick={() => void bulkMergeMatches(selectedIds)}
+              >
+                {bulkApplying ? 'Merging…' : `↔ Merge ${bulkMatchCount} suggested match${bulkMatchCount !== 1 ? 'es' : ''}`}
+              </button>
+            )}
+            <select
+              className="input flex-shrink-0 w-44"
+              value={bulkField}
+              onChange={(e) => { setBulkField(e.target.value); setBulkValue(''); }}
+            >
+              {[
+                'status', 'accountant', 'partner', 'manager',
+                'accounting_role', 'cipc_role', 'tax_role', 'financials_role', 'hr_role',
+                'entity_type', 'year_end',
+              ].map((k) => {
+                const f = DATAGROWS_FIELDS.find((x) => x.key === k);
+                return f ? <option key={k} value={k}>{f.header}</option> : null;
+              })}
+            </select>
+            {field && (
+              field.type === 'enum' && field.enum ? (
+                <select className="input flex-shrink-0 w-44" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}>
+                  <option value="">— choose —</option>
+                  {field.enum.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  className="input flex-shrink-0 w-44"
+                  placeholder={`New value for ${field.header}`}
+                  value={bulkValue}
+                  onChange={(e) => setBulkValue(e.target.value)}
+                />
+              )
+            )}
+            <button
+              className="btn btn-primary text-sm shrink-0"
+              disabled={!bulkValue || bulkApplying}
+              onClick={() => void bulkUpdateField(bulkField, bulkValue)}
+            >
+              {bulkApplying ? 'Applying…' : `Apply to ${selectedIds.size}`}
+            </button>
+            <button
+              className="btn btn-ghost text-sm shrink-0 text-navy-500"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear
+            </button>
+          </div>
+        );
+      })()}
+
       {/* ── Client table ─────────────────────────────────────────────────────── */}
       <div className="card overflow-x-auto">
         <div className="px-3 py-2 text-xs text-navy-400 border-b border-navy-100 bg-navy-50 flex items-center justify-between">
@@ -407,11 +659,75 @@ export function ReviewStep({
         <table className="w-full text-sm min-w-[520px]">
           <thead className="bg-navy-50 text-left text-navy-700">
             <tr>
-              {preview.map((f) => (
-                <th key={f.key} className="px-3 py-3 font-medium whitespace-nowrap">{f.header}</th>
-              ))}
-              <th className="px-3 py-3 font-medium hidden sm:table-cell whitespace-nowrap">Sources</th>
-              <th className="px-3 py-3 font-medium whitespace-nowrap">Status</th>
+              <th className="pl-3 pr-1 py-3 w-8">
+                <input
+                  type="checkbox"
+                  className="rounded"
+                  checked={filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id))}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds(new Set(filtered.map((c) => c.id)));
+                    } else {
+                      setSelectedIds(new Set());
+                    }
+                  }}
+                  title="Select all visible"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </th>
+              {/* Client Name */}
+              <th className="px-3 py-2 font-medium whitespace-nowrap">Client Name</th>
+              {/* Entity Type — filterable */}
+              <th className="px-3 py-2 font-medium whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col gap-0.5">
+                  <span className={filterEntityType ? 'text-teal-700' : ''}>Entity Type</span>
+                  <select
+                    className="text-xs font-normal border border-navy-200 rounded px-1 py-0.5 bg-white text-navy-700 focus:outline-none focus:border-teal-400 cursor-pointer"
+                    value={filterEntityType}
+                    onChange={(e) => { setFilterEntityType(e.target.value); setSelectedIds(new Set()); }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="">All</option>
+                    {entityTypeOptions.map((et) => <option key={et} value={et}>{et}</option>)}
+                  </select>
+                </div>
+              </th>
+              {/* Registration Nr */}
+              <th className="px-3 py-2 font-medium whitespace-nowrap">Registration Nr</th>
+              {/* Tax Nr */}
+              <th className="px-3 py-2 font-medium whitespace-nowrap">Tax Nr</th>
+              {/* Sources — filterable */}
+              <th className="px-3 py-2 font-medium hidden sm:table-cell whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col gap-0.5">
+                  <span className={filterSources ? 'text-teal-700' : ''}>Sources</span>
+                  <select
+                    className="text-xs font-normal border border-navy-200 rounded px-1 py-0.5 bg-white text-navy-700 focus:outline-none focus:border-teal-400 cursor-pointer"
+                    value={filterSources}
+                    onChange={(e) => { setFilterSources(e.target.value); setSelectedIds(new Set()); }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="">All</option>
+                    {sourcesOptions.map((s) => <option key={s} value={s}>{SOURCE_LABELS[s as SourceType] ?? s}</option>)}
+                  </select>
+                </div>
+              </th>
+              {/* Merged status — filterable */}
+              <th className="px-3 py-2 font-medium whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col gap-0.5">
+                  <span className={filterStatus ? 'text-teal-700' : ''}>Status</span>
+                  <select
+                    className="text-xs font-normal border border-navy-200 rounded px-1 py-0.5 bg-white text-navy-700 focus:outline-none focus:border-teal-400 cursor-pointer"
+                    value={filterStatus}
+                    onChange={(e) => { setFilterStatus(e.target.value); setSelectedIds(new Set()); }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="">All</option>
+                    {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </th>
+              {/* Validation status */}
+              <th className="px-3 py-2 font-medium whitespace-nowrap">Valid.</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-navy-100">
@@ -421,25 +737,59 @@ export function ReviewStep({
               const isOpen = editing === c.id;
               const clusterEdits = editsByCluster[c.id] ?? [];
               const isModified = clusterEdits.length > 0;
+              const localId = (c.merged as Record<string, unknown>)._cluster_id as string | undefined;
+              const rowMatch = localId ? pendingMatchByLocalId.get(localId) : undefined;
+              const matchExpanded = expandedMatchId === c.id;
               return (
                 <tr
                   key={c.id}
                   role="button"
                   tabIndex={0}
                   aria-expanded={isOpen}
-                  className={`cursor-pointer select-none transition-colors ${c.archived ? 'opacity-60' : ''} ${isOpen ? 'bg-teal-50 hover:bg-teal-50' : 'hover:bg-navy-50'}`}
+                  className={`cursor-pointer select-none transition-colors ${c.archived ? 'opacity-60' : ''} ${selectedIds.has(c.id) ? 'bg-teal-50' : isOpen ? 'bg-teal-50 hover:bg-teal-50' : 'hover:bg-navy-50'}`}
                   onClick={() => setEditing(isOpen ? null : c.id)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(isOpen ? null : c.id); } }}
                 >
-                  {preview.map((f) => (
-                    <td key={f.key} className="px-3 py-2.5 max-w-[160px] truncate text-navy-800">
-                      {String((c.merged as Record<string, unknown>)[f.key] ?? '—')}
-                    </td>
-                  ))}
+                  <td className="pl-3 pr-1 py-2.5 w-8" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={selectedIds.has(c.id)}
+                      onChange={(e) => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(c.id); else next.delete(c.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </td>
+                  {/* Client Name */}
+                  <td className="px-3 py-2.5 max-w-[180px] truncate text-navy-800 font-medium">
+                    {String(c.merged.client_name ?? '—')}
+                  </td>
+                  {/* Entity Type */}
+                  <td className="px-3 py-2.5 text-navy-700">
+                    {String(c.merged.entity_type ?? '—')}
+                  </td>
+                  {/* Registration Nr */}
+                  <td className="px-3 py-2.5 text-navy-600 text-xs">
+                    {String(c.merged.registration_nr ?? '—')}
+                  </td>
+                  {/* Tax Nr */}
+                  <td className="px-3 py-2.5 text-navy-600 text-xs">
+                    {String(c.merged.tax_nr ?? '—')}
+                  </td>
+                  {/* Sources */}
                   <td className="px-3 py-2.5 text-xs text-navy-500 hidden sm:table-cell">
                     {c.sources.map((s) => SOURCE_LABELS[s as SourceType] ?? s).join(', ')}
                   </td>
-                  <td className="px-3 py-2.5">
+                  {/* Merged status */}
+                  <td className="px-3 py-2.5 text-xs text-navy-600">
+                    {String(c.merged.status ?? '—')}
+                  </td>
+                  {/* Validation status */}
+                  <td className="px-3 py-2.5" onClick={(e) => { if (rowMatch) e.stopPropagation(); }}>
                     <div className="flex items-center gap-1 flex-wrap">
                       {errorIssues.map((issue, i) => (
                         <ErrorBadge key={i} field={issue.field} />
@@ -452,8 +802,48 @@ export function ReviewStep({
                       )}
                       {c.archived && <span className="badge badge-muted">Archived</span>}
                       {isModified && <ModifiedMarker edits={clusterEdits} />}
+                      {rowMatch && (
+                        <button
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setExpandedMatchId(matchExpanded ? null : c.id); }}
+                          title={`Possible match with "${rowMatch.candidateName}"`}
+                        >
+                          ↔ Match
+                        </button>
+                      )}
                       <span className="text-navy-300 text-xs ml-0.5" title="Click row to edit">✎</span>
                     </div>
+                    {/* Inline match card */}
+                    {rowMatch && matchExpanded && (
+                      <div
+                        className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <p className="text-amber-800 font-medium">
+                          Possible duplicate of <span className="italic">&ldquo;{rowMatch.candidateName}&rdquo;</span>
+                          <span className="ml-1 text-amber-600">({Math.round(rowMatch.score * 100)}% match)</span>
+                        </p>
+                        {rowMatch.signals.length > 0 && (
+                          <p className="text-amber-600">Signals: {rowMatch.signals.join(', ')}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            disabled={dedupSaving}
+                            onClick={() => { void acceptDedupMatch(rowMatch); setExpandedMatchId(null); }}
+                            className="flex-1 btn bg-teal text-white text-xs py-1 disabled:opacity-50"
+                          >
+                            {dedupSaving ? '…' : '✓ Merge'}
+                          </button>
+                          <button
+                            disabled={dedupSaving}
+                            onClick={() => { void rejectDedupMatch(rowMatch); setExpandedMatchId(null); }}
+                            className="flex-1 btn border border-amber-300 bg-white text-amber-900 text-xs py-1 disabled:opacity-50"
+                          >
+                            ✕ Keep separate
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
@@ -524,11 +914,35 @@ export function ReviewStep({
 
               {/* Scrollable body */}
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-                {target.archived && target.archive_reason && (
-                  <div className="p-3 bg-amber-50 text-amber-900 text-sm rounded">
-                    <strong>Archived:</strong> {target.archive_reason}
-                  </div>
-                )}
+                {target.archived && target.archive_reason && (() => {
+                  const localId = (target.merged as Record<string, unknown>)._cluster_id as string | undefined;
+                  const dedupMatch = localId
+                    ? pendingMatches.find((m) => m.orphanClusterId === localId)
+                    : undefined;
+                  return (
+                    <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded-xl space-y-3">
+                      <p><strong>Archived:</strong> {target.archive_reason}</p>
+                      {dedupMatch && (
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            disabled={dedupSaving}
+                            onClick={() => void acceptDedupMatch(dedupMatch)}
+                            className="flex-1 btn bg-teal text-white hover:bg-teal-700 text-sm py-1.5 disabled:opacity-50"
+                          >
+                            {dedupSaving ? 'Saving…' : `✓ Yes, merge with "${dedupMatch.candidateName}"`}
+                          </button>
+                          <button
+                            disabled={dedupSaving}
+                            onClick={() => void rejectDedupMatch(dedupMatch)}
+                            className="flex-1 btn border border-amber-300 bg-white text-amber-900 hover:bg-amber-100 text-sm py-1.5 disabled:opacity-50"
+                          >
+                            ✕ Keep separate
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Quick-edit: Entity & Roles */}
                 <div className="p-4 bg-navy-50 rounded-lg border border-navy-100">

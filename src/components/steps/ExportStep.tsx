@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { validateRecord } from '@/lib/validator';
 import type { ClientRecord } from '@/lib/schema/datagrows';
+import { bestNameSimilarity } from '@/lib/matcher';
 
 interface ClusterRow {
   id: string;
@@ -54,6 +55,9 @@ export function ExportStep({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
+  const [suspectedDuplicates, setSuspectedDuplicates] = useState<
+    { aName: string; bName: string; score: number }[]
+  >([]);
   const [docsLoading, setDocsLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -82,6 +86,26 @@ export function ExportStep({
     }
 
     setSummary({ total: rows.length, readyToExport, withErrors, withWarnings, archived, dormant });
+
+    // Export-time duplicate scan — pairwise soft check on all non-archived records
+    const active = rows.filter((r) => !r.archived);
+    const pairs: { aName: string; bName: string; score: number }[] = [];
+    for (let i = 0; i < active.length; i++) {
+      for (let j = i + 1; j < active.length; j++) {
+        const score = bestNameSimilarity(active[i].merged, active[j].merged);
+        if (score >= 0.80) {
+          pairs.push({
+            aName: String(active[i].merged.client_name ?? '—'),
+            bName: String(active[j].merged.client_name ?? '—'),
+            score,
+          });
+        }
+      }
+    }
+    // Sort highest score first, cap at 10 to keep UI clean
+    pairs.sort((a, b) => b.score - a.score);
+    setSuspectedDuplicates(pairs.slice(0, 10));
+
     setLoading(false);
   }, [sessionId, supabase]);
 
@@ -167,6 +191,40 @@ export function ExportStep({
           </div>
         )}
       </div>
+
+      {/* ── Suspected duplicates warning ─────────────────────────────────── */}
+      {suspectedDuplicates.length > 0 && (
+        <div className="card p-4 sm:p-5 border-l-4 border-l-amber-400 bg-amber-50">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-amber-900">
+                ⚠ {suspectedDuplicates.length} possible duplicate{suspectedDuplicates.length !== 1 ? 's' : ''} detected
+              </h3>
+              <p className="text-xs text-amber-700 mt-0.5">
+                These records have very similar names. Review before exporting to avoid duplicates in DataGrows.
+              </p>
+            </div>
+            {onNavigateToReview && (
+              <button
+                onClick={() => onNavigateToReview('all')}
+                className="text-xs text-amber-800 underline hover:text-amber-900 shrink-0"
+              >
+                Go to Review →
+              </button>
+            )}
+          </div>
+          <ul className="space-y-1.5">
+            {suspectedDuplicates.map((p, i) => (
+              <li key={i} className="flex items-center gap-2 text-xs text-amber-800">
+                <span className="font-medium shrink-0">{Math.round(p.score * 100)}%</span>
+                <span className="truncate">{p.aName}</span>
+                <span className="text-amber-400 shrink-0">↔</span>
+                <span className="truncate">{p.bName}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ── Download ─────────────────────────────────────────────────────── */}
       <div className="card p-4 sm:p-6">

@@ -74,8 +74,9 @@ export function parseWorkbook(
 
 /**
  * Best-guess at which row in the matrix is the header row.
- * Sage and Xero sometimes put a title or report metadata in row 1-3.
- * We pick the first row where most cells are strings (not numbers/blanks).
+ * Sage, Xero, and CIPC exports often put a title or metadata in rows 1-3.
+ * We score each row by: filled cells × string ratio × uniqueness ratio.
+ * Uniqueness kills merged-title rows (same value across all columns = score ≈ 0).
  */
 function detectHeaderRow(matrix: unknown[][]): number {
   const maxScan = Math.min(matrix.length, 10);
@@ -87,7 +88,8 @@ function detectHeaderRow(matrix: unknown[][]): number {
     const filled = row.filter((c) => c !== '' && c !== null && c !== undefined);
     if (filled.length === 0) continue;
     const stringRatio = filled.filter((c) => typeof c === 'string').length / filled.length;
-    const score = filled.length * stringRatio;
+    const uniqueRatio = new Set(filled.map((c) => String(c))).size / filled.length;
+    const score = filled.length * stringRatio * uniqueRatio;
     if (score > bestScore) {
       bestScore = score;
       bestIdx = i;

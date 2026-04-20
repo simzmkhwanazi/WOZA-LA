@@ -248,9 +248,18 @@ export function DedupConfirmation({
                   </div>
                 </div>
 
-                <div className="flex-shrink-0 text-center">
+                <div className="flex-shrink-0 text-center space-y-1">
                   <span className={`text-sm font-semibold ${scoreColor(match.score)}`}>{pct}%</span>
                   <p className="text-xs text-navy-400">match</p>
+                  {match.signals && match.signals.length > 0 && (
+                    <div className="flex flex-wrap gap-1 justify-center">
+                      {match.signals.map((s) => (
+                        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-navy-100 text-navy-600 font-medium">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 min-w-0 text-right">
