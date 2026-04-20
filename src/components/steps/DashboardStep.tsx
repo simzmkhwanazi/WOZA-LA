@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -599,6 +599,30 @@ export function DashboardStep({
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
   const [activeTab, setActiveTab] = useState<DashTab>('clients');
+  const [downloading, setDownloading] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
+
+  async function downloadPDF() {
+    if (!dashboardRef.current) return;
+    setDownloading(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      const canvas = await html2canvas(dashboardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f9fafb',
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width / 2, canvas.height / 2] });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`${firmName.replace(/[^a-z0-9_-]/gi, '_')}_dashboard.pdf`);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -648,7 +672,7 @@ export function DashboardStep({
   if (loading) return <p className="text-navy-500 py-6 text-center">Loading dashboard…</p>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={dashboardRef}>
       {building && (
         <div className="text-xs text-teal-700 bg-teal-50 px-3 py-2 rounded">
           ◷ Consolidating firm data from uploaded sources…
@@ -676,11 +700,11 @@ export function DashboardStep({
           <strong className="text-navy-700">{firmName}</strong> · Client Intelligence Dashboard
         </p>
         <button
-          onClick={() => window.print()}
+          onClick={() => void downloadPDF()}
+          disabled={downloading}
           className="btn btn-secondary text-xs"
-          title="Save dashboard as PDF via browser print"
         >
-          Download PDF
+          {downloading ? 'Generating…' : 'Download PDF'}
         </button>
       </div>
 
