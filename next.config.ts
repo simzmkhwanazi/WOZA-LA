@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 
+// v3.1 — force Vercel cache bust
 const nextConfig: NextConfig = {
   serverExternalPackages: ['exceljs', 'xlsx'],
   experimental: {
