@@ -353,6 +353,19 @@ export function ReviewStep({
         </div>
       </div>
 
+      {/* ── Continue bar (top) ───────────────────────────────────────────────── */}
+      {onProceedToExport && clusters.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-white border border-gray-200 rounded-xl">
+          <p className="text-sm text-navy-500">
+            <span className="font-medium text-navy-800">{counts.ready}</span> record{counts.ready !== 1 ? 's' : ''} ready
+            {counts.errors > 0 && <span className="text-rose-500 ml-2">· {counts.errors} with errors</span>}
+          </p>
+          <button onClick={onProceedToExport} className="btn btn-primary text-sm">
+            Continue to Export →
+          </button>
+        </div>
+      )}
+
       {/* ── Client table ─────────────────────────────────────────────────────── */}
       <div className="card overflow-x-auto">
         <div className="px-3 py-2 text-xs text-navy-400 border-b border-navy-100 bg-navy-50 flex items-center justify-between">
