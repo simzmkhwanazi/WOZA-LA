@@ -570,11 +570,13 @@ export function DashboardStep({
   sessionId,
   firmName,
   onOpenFirmSlideOver,
+  onProceedToExport,
 }: {
   sessionId: string;
   firmName: string;
   operatorName?: string | null;
   onOpenFirmSlideOver?: (tab: FirmTab) => void;
+  onProceedToExport?: () => void;
 }) {
   const supabase = createClient();
   const [clusters, setClusters] = useState<ClusterRow[]>([]);
@@ -712,6 +714,15 @@ export function DashboardStep({
           </div>
         )}
       </div>
+
+      {/* ── Proceed to Export ───────────────────────────────────────────── */}
+      {onProceedToExport && (
+        <div className="flex justify-end pt-2">
+          <button onClick={onProceedToExport} className="btn btn-primary text-sm">
+            Continue to Export →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

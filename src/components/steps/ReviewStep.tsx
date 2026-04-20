@@ -152,12 +152,14 @@ export function ReviewStep({
   initialFilter,
   onOpenFirmSlideOver,
   onGoToImport,
+  onProceedToExport,
 }: {
   sessionId: string;
   operatorName?: string | null;
   initialFilter?: Filter;
   onOpenFirmSlideOver?: (tab: FirmTab) => void;
   onGoToImport?: () => void;
+  onProceedToExport?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [clusters, setClusters] = useState<ClusterRow[]>([]);
@@ -468,6 +470,19 @@ export function ReviewStep({
           </p>
         )}
       </div>
+
+      {/* ── Proceed to Export ────────────────────────────────────────────── */}
+      {onProceedToExport && clusters.length > 0 && (
+        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl">
+          <p className="text-sm text-navy-500">
+            <span className="font-medium text-navy-800">{counts.ready}</span> record{counts.ready !== 1 ? 's' : ''} ready
+            {counts.errors > 0 && <span className="text-rose-500 ml-2">· {counts.errors} with errors</span>}
+          </p>
+          <button onClick={onProceedToExport} className="btn btn-primary text-sm">
+            Continue to Export →
+          </button>
+        </div>
+      )}
 
       {/* ── Full-screen edit modal ────────────────────────────────────────── */}
       {editing && (() => {

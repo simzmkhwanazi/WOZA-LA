@@ -302,6 +302,7 @@ export default function SessionPage() {
                 initialFilter={reviewFilter}
                 onOpenFirmSlideOver={openFirmSlideOver}
                 onGoToImport={() => goToTab('upload')}
+                onProceedToExport={() => goToTab('export')}
               />
             )}
             {subTab === 'dashboard' && (
@@ -310,6 +311,7 @@ export default function SessionPage() {
                 firmName={firmDisplayName}
                 operatorName={session.operator_name}
                 onOpenFirmSlideOver={openFirmSlideOver}
+                onProceedToExport={() => goToTab('export')}
               />
             )}
             {subTab === 'export' && (
