@@ -697,7 +697,7 @@ export function DashboardStep({
             className="btn btn-secondary text-xs"
             title="Save dashboard as PDF via browser print"
           >
-            🖨 Export PDF
+            Download PDF
           </button>
         </div>
       </div>
