@@ -440,7 +440,7 @@ export function ReviewStep({
             {counts.errors > 0 && <span className="text-rose-500 ml-2">· {counts.errors} with errors</span>}
           </p>
           <button onClick={onProceedToExport} className="btn btn-primary text-sm">
-            Continue to Dashboard →
+            Continue to Export →
           </button>
         </div>
       )}

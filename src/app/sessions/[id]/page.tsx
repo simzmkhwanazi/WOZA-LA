@@ -64,10 +64,10 @@ function statusColor(status: string): string {
 }
 
 const MAIN_STEPS: { key: MainStep; label: string; icon: string; defaultSub: SubTab }[] = [
-  { key: 'import',    label: 'Import',     icon: '', defaultSub: 'upload' },
-  { key: 'clients',   label: 'Clients',    icon: '', defaultSub: 'review' },
-  { key: 'dashboard', label: 'Dashboard',  icon: '', defaultSub: 'dashboard' },
-  { key: 'export',    label: 'Export',     icon: '', defaultSub: 'export' },
+  { key: 'import',    label: 'Import',    icon: '', defaultSub: 'upload' },
+  { key: 'clients',   label: 'Clients',   icon: '', defaultSub: 'review' },
+  { key: 'export',    label: 'Export',    icon: '', defaultSub: 'export' },
+  { key: 'dashboard', label: 'Dashboard', icon: '', defaultSub: 'dashboard' },
 ];
 
 type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
@@ -260,7 +260,7 @@ export default function SessionPage() {
                 initialFilter={reviewFilter}
                 onOpenFirmSlideOver={openFirmSlideOver}
                 onGoToImport={() => goToTab('upload')}
-                onProceedToExport={() => goToTab('dashboard')}
+                onProceedToExport={() => goToTab('export')}
               />
             )}
             {subTab === 'dashboard' && (
