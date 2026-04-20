@@ -323,6 +323,14 @@ export function ReviewStep({
   return (
     <div className="space-y-4">
 
+      {/* ── Page heading ─────────────────────────────────────────────────────── */}
+      <div className="pb-1 border-b border-navy-100">
+        <h2 className="text-xl font-semibold text-navy-800">Review Clients</h2>
+        <p className="text-sm text-navy-400 mt-0.5">
+          Check every record before export. Fix errors (red), resolve warnings (amber), and archive clients that should be excluded. Click any row to open the full edit panel.
+        </p>
+      </div>
+
       {/* ── Firm data quick-links ────────────────────────────────────────────── */}
       {onOpenFirmSlideOver && (
         <div className="flex items-center gap-2 flex-wrap">
