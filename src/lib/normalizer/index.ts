@@ -34,29 +34,58 @@ export function upperNormalize(v: unknown): string {
 
 export function normalizeDate(v: unknown): string {
   if (v === null || v === undefined || v === '') return '';
-  // Excel serial number?
+
+  // Excel serial number (numeric)
   if (typeof v === 'number') {
     const excelEpoch = new Date(Date.UTC(1899, 11, 30));
     const d = new Date(excelEpoch.getTime() + v * 86400000);
     return formatDDMMYYYY(d);
   }
+
   if (v instanceof Date) return formatDDMMYYYY(v);
+
   const s = String(v).trim();
   if (!s) return '';
-  // Already dd/mm/yyyy?
-  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
-  if (m) {
-    const [, dd, mm, yyyy] = m;
+
+  // dd/mm/yyyy, d/m/yy, dd-mm-yyyy, dd.mm.yyyy
+  const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (dmy) {
+    const [, dd, mm, yyyy] = dmy;
     const year = yyyy.length === 2 ? 2000 + Number(yyyy) : Number(yyyy);
     return `${pad(dd)}/${pad(mm)}/${year}`;
   }
-  // ISO yyyy-mm-dd?
-  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+
+  // ISO 8601: yyyy-mm-dd or yyyy-mm-ddT...
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${pad(iso[3])}/${pad(iso[2])}/${iso[1]}`;
-  // Last resort: parse via Date
+
+  // yyyy/mm/dd
+  const ymd = s.match(/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/);
+  if (ymd) return `${pad(ymd[3])}/${pad(ymd[2])}/${ymd[1]}`;
+
+  // "20 April 2024" or "20 Apr 2024" or "April 20, 2024"
+  const MONTH_MAP: Record<string, string> = {
+    january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',
+    july:'07',august:'08',september:'09',october:'10',november:'11',december:'12',
+    jan:'01',feb:'02',mar:'03',apr:'04',jun:'06',jul:'07',
+    aug:'08',sep:'09',oct:'10',nov:'11',dec:'12',
+  };
+  const textDate = s.match(/^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$/);
+  if (textDate) {
+    const mm = MONTH_MAP[textDate[2].toLowerCase()];
+    if (mm) return `${pad(textDate[1])}/${mm}/${textDate[3]}`;
+  }
+  const textDate2 = s.match(/^([a-zA-Z]+)\s+(\d{1,2})[,\s]+(\d{4})$/);
+  if (textDate2) {
+    const mm = MONTH_MAP[textDate2[1].toLowerCase()];
+    if (mm) return `${pad(textDate2[2])}/${mm}/${textDate2[3]}`;
+  }
+
+  // Last resort: JS Date parse (handles many locale formats)
   const d = new Date(s);
   if (!Number.isNaN(d.getTime())) return formatDDMMYYYY(d);
-  return s; // give up, preserve raw
+
+  return s; // preserve raw — validator will flag it
 }
 
 function pad(n: string | number): string {
