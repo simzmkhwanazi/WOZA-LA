@@ -78,6 +78,15 @@ function StatusBadge({ status }: { status: UploadStatus }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+const ENTITY_TYPES = ['PTY LTD', 'CC', 'TRUST', 'SOLE PROPRIETOR', 'PARTNERSHIP', 'NPC', 'OTHER'];
+const STATUSES = ['Active', 'Inactive', 'Dormant', 'Pending', 'Part of Ownership Structure'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const BLANK_CLIENT = {
+  client_name: '', entity_type: '', registration_nr: '', tax_nr: '', vat_nr: '',
+  status: 'Active', year_end: '', primary_contact: '', contact_nr: '', contact_email: '',
+};
+
 export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProceed?: () => void }) {
   const supabase = createClient();
 
@@ -86,6 +95,51 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
   ]);
   const [uploaded, setUploaded] = useState<UploadedRow[]>([]);
   const [running, setRunning] = useState(false);
+
+  // ── Manual client modal ──────────────────────────────────────────────────────
+  const [showManual, setShowManual] = useState(false);
+  const [manualFields, setManualFields] = useState({ ...BLANK_CLIENT });
+  const [savingManual, setSavingManual] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [manualCount, setManualCount] = useState(0);
+
+  async function loadManualCount() {
+    const { count } = await supabase
+      .from('clusters')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', sessionId)
+      .contains('sources', ['manual']);
+    setManualCount(count ?? 0);
+  }
+
+  useEffect(() => { void loadManualCount(); }, [sessionId]);
+
+  async function saveManualClient() {
+    if (!manualFields.client_name.trim()) {
+      setManualError('Client name is required.');
+      return;
+    }
+    setSavingManual(true);
+    setManualError(null);
+    try {
+      const { error } = await supabase.from('clusters').insert({
+        session_id: sessionId,
+        merged: manualFields,
+        sources: ['manual'],
+        archived: false,
+        archive_reason: null,
+        primary_key_value: manualFields.client_name.trim(),
+      });
+      if (error) throw error;
+      setManualFields({ ...BLANK_CLIENT });
+      setShowManual(false);
+      void loadManualCount();
+    } catch (err) {
+      setManualError(err instanceof Error ? err.message : 'Failed to save client.');
+    } finally {
+      setSavingManual(false);
+    }
+  }
 
   // ── Batch selection ──────────────────────────────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -508,6 +562,94 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
           </div>
         )}
       </div>
+
+      {/* ── Add client manually ──────────────────────────────────────────────── */}
+      <div className="card p-4 sm:p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-navy-800">Add clients manually</h3>
+            <p className="text-sm text-navy-400 mt-0.5">
+              Enter a client record directly — no file needed.
+              {manualCount > 0 && <span className="ml-2 text-teal-600 font-medium">{manualCount} added so far</span>}
+            </p>
+          </div>
+          <button onClick={() => { setManualFields({ ...BLANK_CLIENT }); setManualError(null); setShowManual(true); }} className="btn btn-secondary text-sm flex-shrink-0">
+            + Add Client
+          </button>
+        </div>
+      </div>
+
+      {/* ── Manual client modal ─────────────────────────────────────────────── */}
+      {showManual && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowManual(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-navy-800">Add Client Manually</h2>
+              <button onClick={() => setShowManual(false)} className="text-navy-300 hover:text-navy-700 text-2xl leading-none">×</button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-navy-500 mb-1">Client Name <span className="text-rose-500">*</span></label>
+                <input className="input w-full" value={manualFields.client_name} onChange={(e) => setManualFields((f) => ({ ...f, client_name: e.target.value }))} placeholder="e.g. Blue Capital (Pty) Ltd" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">Entity Type</label>
+                <select className="input w-full" value={manualFields.entity_type} onChange={(e) => setManualFields((f) => ({ ...f, entity_type: e.target.value }))}>
+                  <option value="">— Select —</option>
+                  {ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">Status</label>
+                <select className="input w-full" value={manualFields.status} onChange={(e) => setManualFields((f) => ({ ...f, status: e.target.value }))}>
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">Registration Nr</label>
+                <input className="input w-full" value={manualFields.registration_nr} onChange={(e) => setManualFields((f) => ({ ...f, registration_nr: e.target.value }))} placeholder="2022/123456/07" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">Tax Nr</label>
+                <input className="input w-full" value={manualFields.tax_nr} onChange={(e) => setManualFields((f) => ({ ...f, tax_nr: e.target.value }))} placeholder="1234567890" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">VAT Nr</label>
+                <input className="input w-full" value={manualFields.vat_nr} onChange={(e) => setManualFields((f) => ({ ...f, vat_nr: e.target.value }))} placeholder="4123456789" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">Year End</label>
+                <select className="input w-full" value={manualFields.year_end} onChange={(e) => setManualFields((f) => ({ ...f, year_end: e.target.value }))}>
+                  <option value="">— Month —</option>
+                  {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">Primary Contact</label>
+                <input className="input w-full" value={manualFields.primary_contact} onChange={(e) => setManualFields((f) => ({ ...f, primary_contact: e.target.value }))} placeholder="Jane Smith" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy-500 mb-1">Phone</label>
+                <input className="input w-full" value={manualFields.contact_nr} onChange={(e) => setManualFields((f) => ({ ...f, contact_nr: e.target.value }))} placeholder="+27 11 000 0000" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-navy-500 mb-1">Email</label>
+                <input className="input w-full" type="email" value={manualFields.contact_email} onChange={(e) => setManualFields((f) => ({ ...f, contact_email: e.target.value }))} placeholder="info@example.co.za" />
+              </div>
+            </div>
+
+            {manualError && <p className="text-sm text-rose-600">{manualError}</p>}
+
+            <div className="flex justify-end gap-3 pt-1">
+              <button onClick={() => setShowManual(false)} className="btn btn-ghost text-sm">Cancel</button>
+              <button onClick={() => void saveManualClient()} disabled={savingManual} className="btn btn-primary text-sm">
+                {savingManual ? 'Saving…' : 'Save Client'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

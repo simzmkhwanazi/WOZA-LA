@@ -675,31 +675,13 @@ export function DashboardStep({
         <p className="text-sm text-navy-500">
           <strong className="text-navy-700">{firmName}</strong> · Client Intelligence Dashboard
         </p>
-        <div className="flex gap-2">
-          {onOpenFirmSlideOver && (
-            <>
-              <button
-                onClick={() => onOpenFirmSlideOver('company')}
-                className="btn btn-ghost text-xs border border-navy-200"
-              >
-                Company Info ↗
-              </button>
-              <button
-                onClick={() => onOpenFirmSlideOver('employees')}
-                className="btn btn-ghost text-xs border border-navy-200"
-              >
-                Employees ↗
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => window.print()}
-            className="btn btn-secondary text-xs"
-            title="Save dashboard as PDF via browser print"
-          >
-            Download PDF
-          </button>
-        </div>
+        <button
+          onClick={() => window.print()}
+          className="btn btn-secondary text-xs"
+          title="Save dashboard as PDF via browser print"
+        >
+          Download PDF
+        </button>
       </div>
 
       {/* Sub-tabs */}
