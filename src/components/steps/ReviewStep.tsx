@@ -403,6 +403,21 @@ export function ReviewStep({
     dormant: decorated.filter((c) => c.merged.status === 'Dormant').length,
   }), [decorated]);
 
+  // Group error clusters by field for the quick-fix bar
+  const errorsByField = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const c of decorated) {
+      if (c.archived) continue;
+      for (const issue of c.validation.issues) {
+        if (issue.severity === 'error') {
+          if (!map[issue.field]) map[issue.field] = [];
+          map[issue.field].push(c.id);
+        }
+      }
+    }
+    return map;
+  }, [decorated]);
+
   async function updateField(clusterId: string, fieldKey: string, value: unknown) {
     const target = clusters.find((c) => c.id === clusterId);
     if (!target) return;
@@ -580,6 +595,31 @@ export function ReviewStep({
           </button>
         )}
       </div>
+
+      {/* ── Quick-fix bar ────────────────────────────────────────────────────── */}
+      {Object.keys(errorsByField).length > 0 && selectedIds.size === 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-sm">
+          <span className="text-rose-700 font-semibold shrink-0">Quick fix:</span>
+          {Object.entries(errorsByField).map(([field, ids]) => {
+            const label = FIELD_SHORT[field] ?? field.replace(/_/g, ' ');
+            return (
+              <button
+                key={field}
+                onClick={() => {
+                  setSelectedIds(new Set(ids));
+                  setBulkField(field);
+                  setBulkValue('');
+                  setFilter('all');
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-rose-300 text-rose-700 font-medium hover:bg-rose-100 transition-colors"
+              >
+                <span className="text-rose-400 font-bold">{ids.length}×</span>
+                {label} missing
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Continue bar (top) ───────────────────────────────────────────────── */}
       {onProceedToExport && clusters.length > 0 && (
