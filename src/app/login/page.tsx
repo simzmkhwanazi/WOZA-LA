@@ -166,7 +166,7 @@ export default function LoginPage() {
               <form onSubmit={(e) => void handleResetPassword(e)} className="space-y-4">
                 <div>
                   <h2 className="text-lg font-semibold text-navy-800">Reset your password</h2>
-                  <p className="text-sm text-navy-400 mt-0.5">Enter your email and we'll send you a reset link.</p>
+                  <p className="text-sm text-navy-400 mt-0.5">Enter your email and we&apos;ll send you a reset link.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-navy-700 mb-1">Email</label>
