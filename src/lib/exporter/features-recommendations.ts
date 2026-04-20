@@ -311,7 +311,7 @@ export async function generateFeaturesRecommendations(
   ws.mergeCells('A1:F1');
 
   const dateRow = ws.addRow([
-    `Generated ${new Date().toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })}${opts.generatedBy ? ` by ${opts.generatedBy}` : ''}  |  Rule-based data analysis`,
+    `Generated ${new Date().toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })} by DataGrows  |  Rule-based data analysis`,
   ]);
   dateRow.getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } };
   ws.mergeCells('A2:F2');

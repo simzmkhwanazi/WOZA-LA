@@ -658,7 +658,7 @@ export function DashboardStep({
             ${fp?.company_name && fp.company_name !== firmName ? `<div style="font-size:13px;color:#64748b;margin-top:2px;">${fp.company_name}</div>` : ''}
           </div>
           <div style="text-align:right;font-size:11px;color:#94a3b8;">
-            <div>Generated ${dateStr}</div>
+            <div>Generated ${dateStr} by DataGrows</div>
             <div style="margin-top:2px;">DataGrows Internal Use Only</div>
           </div>
         </div>

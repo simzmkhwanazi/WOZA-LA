@@ -341,7 +341,7 @@ function PdfReport({ opts }: { opts: PdfReportOptions }) {
           {firmAddress ? <Text style={[s.coverFirm, { fontSize: 10, opacity: 0.6 }]}>{firmAddress}</Text> : null}
           {fp?.contact_nr ? <Text style={[s.coverFirm, { fontSize: 10, opacity: 0.6 }]}>{fp.contact_nr}</Text> : null}
           {fp?.email ? <Text style={[s.coverFirm, { fontSize: 10, opacity: 0.6 }]}>{fp.email}</Text> : null}
-          <Text style={s.coverDate}>Generated {dateStr}{opts.generatedBy ? ` by ${opts.generatedBy}` : ''}</Text>
+          <Text style={s.coverDate}>Generated {dateStr} by DataGrows</Text>
         </View>
         <Text style={{ fontSize: 8, color: C.teal2, opacity: 0.4, textAlign: 'center' }}>
           Confidential
