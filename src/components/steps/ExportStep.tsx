@@ -53,8 +53,6 @@ export function ExportStep({
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fixing, setFixing] = useState(false);
-  const [fixMsg, setFixMsg] = useState<string | null>(null);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
 
@@ -137,27 +135,6 @@ export function ExportStep({
     }
   }
 
-  async function runAutoFix() {
-    setFixing(true);
-    setFixMsg(null);
-    try {
-      const res = await fetch('/api/auto-fix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
-      const data = await res.json() as { fixed?: number; error?: string };
-      if (data.error) throw new Error(data.error);
-      const n = data.fixed ?? 0;
-      setFixMsg(n > 0 ? `AI fixed ${n} record(s). Refreshing…` : 'No automatic fixes found.');
-      if (n > 0) await load();
-    } catch (err) {
-      setFixMsg(`Fix failed: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setFixing(false);
-    }
-  }
-
   const canGenerate = !generating && ((summary?.readyToExport ?? 0) > 0 || (summary?.withErrors ?? 0) > 0);
 
   if (loading) return <p className="text-navy-500">Loading export summary…</p>;
@@ -181,23 +158,13 @@ export function ExportStep({
           <Stat label="Archived"        value={summary.archived}       tone="muted" onClick={onNavigateToReview && summary.archived > 0      ? () => onNavigateToReview('archived') : undefined} />
         </div>
 
-        {/* Auto-fix banner */}
+        {/* Error banner */}
         {summary.withErrors > 0 && (
-          <div className="mb-4 p-3 bg-amber-50 text-amber-900 text-sm rounded flex items-start justify-between gap-3">
-            <span>
-              <strong>{summary.withErrors}</strong> record(s) have errors and will be skipped in the DataGrows export.
-              The remaining <strong>{summary.readyToExport}</strong> clean records will still be exported.
-            </span>
-            <button onClick={runAutoFix} disabled={fixing} className="btn btn-secondary text-sm shrink-0">
-              {fixing ? 'Fixing…' : 'Auto-fix with AI'}
-            </button>
+          <div className="mb-4 p-3 bg-amber-50 text-amber-900 text-sm rounded">
+            <strong>{summary.withErrors}</strong> record(s) have errors and will be skipped in the export.
+            The remaining <strong>{summary.readyToExport}</strong> clean records will still be exported.
+            Go to <strong>Review</strong> to fix errors manually.
           </div>
-        )}
-
-        {fixMsg && (
-          <p className={`text-sm mb-3 ${fixMsg.startsWith('Fix failed') ? 'text-rose-600' : 'text-green-700'}`}>
-            {fixMsg}
-          </p>
         )}
       </div>
 

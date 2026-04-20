@@ -167,8 +167,6 @@ export function ReviewStep({
   // Default to 'all' — clerks can see and edit any record, clean or not
   const [filter, setFilter] = useState<Filter>(initialFilter ?? 'all');
   const [editing, setEditing] = useState<string | null>(null);
-  const [fixing, setFixing] = useState(false);
-  const [fixResult, setFixResult] = useState<{ fixed: number } | null>(null);
   const [savedField, setSavedField] = useState<string | null>(null);
   const [lastExportedAt, setLastExportedAt] = useState<Date | null>(null);
   const [postExportEdits, setPostExportEdits] = useState<EditRecord[]>([]);
@@ -263,27 +261,6 @@ export function ReviewStep({
     archived: decorated.filter((c) => c.archived).length,
     dormant: decorated.filter((c) => c.merged.status === 'Dormant').length,
   }), [decorated]);
-
-  async function runAutoFix() {
-    setFixing(true);
-    setFixResult(null);
-    try {
-      const res = await fetch('/api/auto-fix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
-      const data = await res.json() as { fixed?: number; error?: string };
-      if (data.error) throw new Error(data.error);
-      setFixResult({ fixed: data.fixed ?? 0 });
-      if ((data.fixed ?? 0) > 0) await load();
-    } catch (err) {
-      setFixResult({ fixed: -1 });
-      console.error('[auto-fix]', err);
-    } finally {
-      setFixing(false);
-    }
-  }
 
   async function updateField(clusterId: string, fieldKey: string, value: unknown) {
     const target = clusters.find((c) => c.id === clusterId);
@@ -384,25 +361,6 @@ export function ReviewStep({
               {label}
             </button>
           ))}
-          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            {fixResult && fixResult.fixed >= 0 && (
-              <span className="text-sm text-green-700 bg-green-50 px-2 py-1 rounded">
-                {fixResult.fixed > 0 ? `AI fixed ${fixResult.fixed} record(s)` : 'No automatic fixes found'}
-              </span>
-            )}
-            {fixResult && fixResult.fixed === -1 && (
-              <span className="text-sm text-red-600">Fix failed — try again</span>
-            )}
-            {counts.errors > 0 && (
-              <button
-                onClick={runAutoFix}
-                disabled={fixing}
-                className="btn btn-secondary text-sm flex-shrink-0"
-              >
-                {fixing ? 'Running AI fix…' : `Auto-fix ${counts.errors} error(s)`}
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
