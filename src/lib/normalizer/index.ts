@@ -279,6 +279,11 @@ export function normalizeRecord(record: Record<string, unknown>): ClientRecord {
     if (inferred) (out as Record<string, unknown>).entity_type = inferred;
   }
 
+  // Sole props and individuals always have a February year-end in SA
+  if (!out.year_end && (out.entity_type === 'SOLE PROP' || out.entity_type === 'INDIVIDUAL')) {
+    (out as Record<string, unknown>).year_end = 'February';
+  }
+
   return out;
 }
 
