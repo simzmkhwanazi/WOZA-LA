@@ -148,6 +148,17 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
   // ── Replace: maps uploadId → hidden file input ref ───────────────────────────
   const replaceRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
+  // ── Cancellation ─────────────────────────────────────────────────────────────
+  const abortControllersRef = useRef<Record<string, AbortController>>({});
+  const cancelledRef = useRef<Set<string>>(new Set());
+
+  function cancelUpload(id: string) {
+    cancelledRef.current.add(id);
+    abortControllersRef.current[id]?.abort();
+    delete abortControllersRef.current[id];
+    removeRow(id);
+  }
+
   // ── Load existing uploads ────────────────────────────────────────────────────
 
   const loadUploads = useCallback(async () => {
@@ -259,23 +270,31 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
     }
 
     patchItem(item.id, { status: 'uploading', progress: 5, error: undefined });
+    cancelledRef.current.delete(item.id);
+    const controller = new AbortController();
+    abortControllersRef.current[item.id] = controller;
+    const { signal } = controller;
 
     try {
       const signRes = await fetch('/api/uploads/sign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, fileName: item.file.name }),
+        signal,
       });
+      if (cancelledRef.current.has(item.id)) return;
       const signData = await signRes.json() as { signedUrl?: string; token?: string; path?: string; error?: string };
       if (!signRes.ok) throw new Error(signData.error ?? 'Failed to get upload URL');
 
       const { token, path: storagePath } = signData as { signedUrl: string; token: string; path: string };
 
       patchItem(item.id, { progress: 20 });
+      if (cancelledRef.current.has(item.id)) return;
 
       const { error: upErr } = await supabase.storage
         .from('uploads')
         .uploadToSignedUrl(storagePath, token, item.file, { upsert: false });
+      if (cancelledRef.current.has(item.id)) return;
       if (upErr) throw upErr;
 
       patchItem(item.id, { progress: 60 });
@@ -286,6 +305,7 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
 
       if (isSpreadsheet(item.file)) {
         const buffer = await item.file.arrayBuffer();
+        if (cancelledRef.current.has(item.id)) return;
         const parsed = parseWorkbook(buffer, item.file.name);
         const primary = parsed.sheets.find((s) => s.sheetName === parsed.primarySheetName);
         if (primary) {
@@ -296,6 +316,7 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
       }
 
       patchItem(item.id, { progress: 80 });
+      if (cancelledRef.current.has(item.id)) return;
 
       const saveRes = await fetch('/api/uploads', {
         method: 'POST',
@@ -309,14 +330,18 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
           detectedColumns,
           rows,
         }),
+        signal,
       });
+      if (cancelledRef.current.has(item.id)) return;
       const saveData = await saveRes.json() as { uploadId?: string; error?: string };
       if (!saveRes.ok) throw new Error(saveData.error ?? 'Failed to save upload');
 
       patchItem(item.id, { status: 'success', progress: 100 });
+      delete abortControllersRef.current[item.id];
       void loadUploads();
 
     } catch (err) {
+      if (cancelledRef.current.has(item.id)) return; // silently drop cancelled items
       patchItem(item.id, {
         status: 'error',
         progress: 0,
@@ -397,11 +422,11 @@ export function UploadStep({ sessionId, onProceed }: { sessionId: string; onProc
                   )}
                 </div>
 
-                {item.status !== 'uploading' && queue.length > 1 && (
+                {(item.status === 'uploading' || queue.length > 1) && (
                   <button
-                    onClick={() => removeRow(item.id)}
+                    onClick={() => item.status === 'uploading' ? cancelUpload(item.id) : removeRow(item.id)}
                     className="text-gray-300 hover:text-rose-500 transition-colors flex-shrink-0 text-xl leading-none"
-                    title="Remove row"
+                    title={item.status === 'uploading' ? 'Cancel upload' : 'Remove row'}
                   >×</button>
                 )}
               </div>
