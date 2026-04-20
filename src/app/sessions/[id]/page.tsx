@@ -254,27 +254,6 @@ export default function SessionPage() {
               </div>
             )}
 
-            {/* Export sub-nav — visible when on export main step */}
-            {activeMain === 'export' && (
-              <div className="mt-1 ml-11">
-                <button
-                  onClick={() => goToTab('export')}
-                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
-                    subTab === 'export' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Export
-                </button>
-                <button
-                  onClick={() => goToTab('audit')}
-                  className={`block w-full text-left px-3 py-1.5 text-xs rounded transition-colors ${
-                    subTab === 'audit' ? 'text-teal-700 font-medium' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Audit Log
-                </button>
-              </div>
-            )}
           </nav>
         </aside>
 

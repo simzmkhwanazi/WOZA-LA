@@ -33,42 +33,8 @@ interface GeneratedDocument {
 }
 
 type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
-type ExportType = 'datagrows' | 'archived' | 'firm_excel' | 'firm_pdf' | 'features_pdf';
-
-const DOC_OPTIONS: { value: ExportType; label: string; description: string }[] = [
-  {
-    value: 'datagrows',
-    label: 'DataGrows Masterfile',
-    description: 'Export-ready .xlsx import file for DataGrows (86-column template).',
-  },
-  {
-    value: 'firm_excel',
-    label: 'Client Intelligence Report (Excel)',
-    description: 'Multi-sheet workbook: Clients, Services, Employees, Contacts, Suppliers, Data Quality.',
-  },
-  {
-    value: 'firm_pdf',
-    label: 'Client Intelligence Report (PDF)',
-    description: 'Presentation-ready PDF with charts, executive summary, and full client appendix.',
-  },
-  {
-    value: 'features_pdf',
-    label: 'DataGrows Feature Recommendations',
-    description: 'Scored Excel scorecard showing which DataGrows features are most relevant for this firm.',
-  },
-  {
-    value: 'archived',
-    label: 'Archived Clients Report',
-    description: 'Report listing archived clients and their reasons — for firm follow-up.',
-  },
-];
-
 const DOC_TYPE_LABELS: Record<string, string> = {
-  datagrows:    'DataGrows Masterfile',
-  firm_excel:   'Client Intelligence (Excel)',
-  firm_pdf:     'Client Intelligence (PDF)',
-  features_pdf: 'Feature Recommendations',
-  archived:     'Archived Clients',
+  datagrows: 'DataGrows Masterfile',
 };
 
 export function ExportStep({
@@ -85,7 +51,6 @@ export function ExportStep({
   const supabase = createClient();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedType, setSelectedType] = useState<ExportType>('datagrows');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fixing, setFixing] = useState(false);
@@ -143,7 +108,7 @@ export function ExportStep({
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/export/${sessionId}?type=${selectedType}`);
+      const res = await fetch(`/api/export/${sessionId}?type=datagrows`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error ?? `Export failed (${res.status})`);
@@ -156,23 +121,12 @@ export function ExportStep({
       const disposition = res.headers.get('Content-Disposition') ?? '';
       const match = disposition.match(/filename="?([^"]+)"?/);
       const safe = firmName.replace(/[^a-z0-9_\-]/gi, '_').slice(0, 60) || 'firm';
-      const fallbacks: Record<ExportType, string> = {
-        datagrows:    `${safe}_datagrows_import.xlsx`,
-        archived:     `${safe}_archived_report.xlsx`,
-        firm_excel:   `${safe}_client_intelligence.xlsx`,
-        firm_pdf:     `${safe}_client_intelligence.pdf`,
-        features_pdf: `${safe}_datagrows_features.xlsx`,
-      };
-      a.download = match?.[1] ?? fallbacks[selectedType];
+      a.download = match?.[1] ?? `${safe}_datagrows_import.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // If DataGrows export — notify parent to clear re-export banner
-      if (selectedType === 'datagrows') {
-        onExportComplete?.();
-      }
+      onExportComplete?.();
 
       // Refresh document history
       await loadDocuments();
@@ -204,15 +158,7 @@ export function ExportStep({
     }
   }
 
-  const selectedOption = DOC_OPTIONS.find((o) => o.value === selectedType)!;
-  const isDataGrows = selectedType === 'datagrows';
-  const canGenerate = !generating && (
-    isDataGrows
-      ? (summary?.readyToExport ?? 0) > 0 || (summary?.withErrors ?? 0) > 0
-      : selectedType === 'archived'
-        ? (summary?.archived ?? 0) > 0
-        : true // firm reports can always be generated
-  );
+  const canGenerate = !generating && ((summary?.readyToExport ?? 0) > 0 || (summary?.withErrors ?? 0) > 0);
 
   if (loading) return <p className="text-navy-500">Loading export summary…</p>;
   if (!summary) return <p className="text-rose-600">No cluster data available.</p>;
@@ -255,55 +201,24 @@ export function ExportStep({
         )}
       </div>
 
-      {/* ── Document generator ───────────────────────────────────────────── */}
+      {/* ── Download ─────────────────────────────────────────────────────── */}
       <div className="card p-4 sm:p-6">
-        <h3 className="text-base font-semibold text-navy-800 mb-4">Generate Document</h3>
-
-        {/* Document type selector */}
-        <div className="space-y-2 mb-4">
-          {DOC_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                selectedType === opt.value
-                  ? 'border-teal bg-teal-50'
-                  : 'border-navy-100 hover:border-navy-200 hover:bg-navy-50'
-              }`}
-            >
-              <input
-                type="radio"
-                name="docType"
-                value={opt.value}
-                checked={selectedType === opt.value}
-                onChange={() => setSelectedType(opt.value)}
-                className="mt-0.5 accent-teal-600"
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-navy-800">{opt.label}</p>
-                <p className="text-xs text-navy-500 mt-0.5">{opt.description}</p>
-              </div>
-            </label>
-          ))}
-        </div>
-
-        {/* Generate button */}
+        <h3 className="text-base font-semibold text-navy-800 mb-1">DataGrows Masterfile</h3>
+        <p className="text-sm text-navy-500 mb-4">
+          86-column .xlsx ready to upload directly into DataGrows. Only error-free, non-archived records are included.
+        </p>
         <div className="flex flex-wrap gap-3 items-center">
           <button
             className="btn btn-primary"
             onClick={generate}
             disabled={!canGenerate}
           >
-            {generating
-              ? 'Generating…'
-              : isDataGrows
-                ? `Generate DataGrows Masterfile (${summary.readyToExport} rows)`
-                : `Generate ${selectedOption.label}`}
+            {generating ? 'Generating…' : `Download Masterfile (${summary.readyToExport} rows)`}
           </button>
           <button className="btn btn-ghost" onClick={() => { void load(); void loadDocuments(); }} disabled={generating || loading}>
             Refresh
           </button>
         </div>
-
         {error && <p className="text-sm text-rose-600 mt-3">{error}</p>}
       </div>
 
@@ -374,17 +289,6 @@ export function ExportStep({
         )}
       </div>
 
-      {/* ── What happens on export info box ─────────────────────────────── */}
-      <div className="card p-6 text-sm text-navy-600">
-        <h4 className="font-semibold text-navy-800 mb-2">What each document contains</h4>
-        <ul className="list-disc ml-5 space-y-1">
-          <li><strong>DataGrows Masterfile</strong> — 86-column .xlsx ready to upload directly into DataGrows. Only error-free, non-archived records included. Updates your re-export timestamp.</li>
-          <li><strong>Client Intelligence Report (Excel)</strong> — Multi-sheet workbook with Clients, Services Matrix, Source Coverage, Employees, Contacts, Suppliers, and Data Quality sheets.</li>
-          <li><strong>Client Intelligence Report (PDF)</strong> — Presentation-ready PDF with executive summary, charts, and full client appendix. Branded to the firm (no Woza La branding).</li>
-          <li><strong>DataGrows Feature Recommendations</strong> — Scored Excel scorecard showing which DataGrows features are most relevant for this firm, based on client portfolio data analysis.</li>
-          <li><strong>Archived Clients Report</strong> — Listing of archived clients and their archive reasons for the firm to follow up on.</li>
-        </ul>
-      </div>
     </div>
   );
 }
