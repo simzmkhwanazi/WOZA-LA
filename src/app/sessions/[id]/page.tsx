@@ -11,10 +11,11 @@ import { ExportStep } from '@/components/steps/ExportStep';
 import { AuditStep } from '@/components/steps/AuditStep';
 import { DashboardStep } from '@/components/steps/DashboardStep';
 import { FirmDataSlideOver, type FirmTab } from '@/components/FirmDataSlideOver';
+import { StaffStep } from '@/components/steps/StaffStep';
 
 // Sub-tabs within each main step
-type SubTab = 'upload' | 'mapping' | 'dedup' | 'review' | 'dashboard' | 'export' | 'audit';
-type MainStep = 'import' | 'clients' | 'dashboard' | 'export';
+type SubTab = 'upload' | 'mapping' | 'dedup' | 'staff' | 'review' | 'dashboard' | 'export' | 'audit';
+type MainStep = 'import' | 'staff' | 'clients' | 'dashboard' | 'export';
 
 interface SessionDto {
   id: string;
@@ -30,6 +31,7 @@ interface SessionDto {
 // Which main step each sub-tab belongs to
 const SUB_TO_MAIN: Record<SubTab, MainStep> = {
   upload: 'import', mapping: 'import', dedup: 'import',
+  staff: 'staff',
   review: 'clients',
   dashboard: 'dashboard',
   export: 'export', audit: 'export',
@@ -37,7 +39,7 @@ const SUB_TO_MAIN: Record<SubTab, MainStep> = {
 
 const TAB_PARAM_MAP: Record<string, SubTab> = {
   upload: 'upload', mapping: 'mapping', process: 'mapping',
-  dedup: 'dedup', review: 'review', dashboard: 'dashboard',
+  dedup: 'dedup', staff: 'staff', review: 'review', dashboard: 'dashboard',
   export: 'export', audit: 'audit',
 };
 
@@ -65,6 +67,7 @@ function statusColor(status: string): string {
 
 const MAIN_STEPS: { key: MainStep; label: string; icon: string; defaultSub: SubTab }[] = [
   { key: 'import',    label: 'Import',    icon: '', defaultSub: 'upload' },
+  { key: 'staff',     label: 'Staff',     icon: '', defaultSub: 'staff' },
   { key: 'clients',   label: 'Clients',   icon: '', defaultSub: 'review' },
   { key: 'export',    label: 'Export',    icon: '', defaultSub: 'export' },
   { key: 'dashboard', label: 'Dashboard', icon: '', defaultSub: 'dashboard' },
@@ -243,19 +246,26 @@ export default function SessionPage() {
             {subTab === 'mapping' && (
               <MappingStep
                 sessionId={sessionId}
-                onComplete={() => goToTab('review')}
+                onComplete={() => goToTab('staff')}
                 onDedupRequired={() => goToTab('dedup')}
               />
             )}
             {subTab === 'dedup' && (
               <DedupConfirmation
                 sessionId={sessionId}
-                onComplete={() => goToTab('review')}
+                onComplete={() => goToTab('staff')}
+              />
+            )}
+            {subTab === 'staff' && (
+              <StaffStep
+                firmId={session.firm_id}
+                onContinue={() => goToTab('review')}
               />
             )}
             {subTab === 'review' && (
               <ReviewStep
                 sessionId={sessionId}
+                firmId={session.firm_id}
                 operatorName={session.operator_name}
                 initialFilter={reviewFilter}
                 onOpenFirmSlideOver={openFirmSlideOver}

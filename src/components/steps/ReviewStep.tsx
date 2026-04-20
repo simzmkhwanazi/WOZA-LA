@@ -176,8 +176,16 @@ interface ClusterRow {
 type Filter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
 type FirmTab = 'company' | 'employees' | 'suppliers';
 
+interface StaffMember { id: string; name: string; roles: string[] }
+
+const STAFF_ROLE_FIELDS = new Set([
+  'partner', 'manager', 'accountant',
+  'accounting_role', 'cipc_role', 'tax_role', 'financials_role', 'hr_role',
+]);
+
 export function ReviewStep({
   sessionId,
+  firmId,
   operatorName,
   initialFilter,
   onOpenFirmSlideOver,
@@ -185,6 +193,7 @@ export function ReviewStep({
   onProceedToExport,
 }: {
   sessionId: string;
+  firmId?: string;
   operatorName?: string | null;
   initialFilter?: Filter;
   onOpenFirmSlideOver?: (tab: FirmTab) => void;
@@ -219,6 +228,9 @@ export function ReviewStep({
   const [bulkField, setBulkField] = useState('accountant');
   const [bulkValue, setBulkValue] = useState('');
   const [bulkApplying, setBulkApplying] = useState(false);
+
+  // Firm staff for bulk staff picker
+  const [firmStaff, setFirmStaff] = useState<StaffMember[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -290,6 +302,13 @@ export function ReviewStep({
   }, [sessionId, supabase]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load firm staff for the bulk staff picker
+  useEffect(() => {
+    if (!firmId) return;
+    supabase.from('firm_staff').select('id, name, roles').eq('firm_id', firmId).order('name')
+      .then(({ data }) => { if (data) setFirmStaff(data as StaffMember[]); });
+  }, [firmId, supabase]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -585,63 +604,118 @@ export function ReviewStep({
           const localId = (cluster.merged as Record<string, unknown>)._cluster_id as string | undefined;
           return localId ? pendingMatchByLocalId.has(localId) : false;
         }).length;
+        const isStaffField = STAFF_ROLE_FIELDS.has(bulkField);
+        const staffForField = isStaffField
+          ? firmStaff.filter((s) => {
+              if (s.roles.length === 0) return true;
+              const roleLabel = DATAGROWS_FIELDS.find((f) => f.key === bulkField)?.header ?? '';
+              return s.roles.some((r) => r.toLowerCase().includes(roleLabel.toLowerCase().split(' ')[0]));
+            })
+          : [];
+        const showStaffPicker = isStaffField && firmStaff.length > 0;
+
         return (
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-teal-50 border border-teal-200 rounded-xl text-sm">
-            <span className="font-semibold text-teal-800 shrink-0">
-              {selectedIds.size} selected
-            </span>
-            {bulkMatchCount > 0 && (
-              <button
-                className="btn text-sm shrink-0 bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
-                disabled={bulkApplying}
-                onClick={() => void bulkMergeMatches(selectedIds)}
+          <div className="flex flex-col gap-3 px-4 py-3 bg-teal-50 border border-teal-200 rounded-xl text-sm">
+            {/* Row 1: counts + merge + field picker */}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-semibold text-teal-800 shrink-0">
+                {selectedIds.size} selected
+              </span>
+              {bulkMatchCount > 0 && (
+                <button
+                  className="btn text-sm shrink-0 bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                  disabled={bulkApplying}
+                  onClick={() => void bulkMergeMatches(selectedIds)}
+                >
+                  {bulkApplying ? 'Merging…' : `↔ Merge ${bulkMatchCount} suggested match${bulkMatchCount !== 1 ? 'es' : ''}`}
+                </button>
+              )}
+              <select
+                className="input flex-shrink-0 w-44"
+                value={bulkField}
+                onChange={(e) => { setBulkField(e.target.value); setBulkValue(''); }}
               >
-                {bulkApplying ? 'Merging…' : `↔ Merge ${bulkMatchCount} suggested match${bulkMatchCount !== 1 ? 'es' : ''}`}
+                {[
+                  'status', 'accountant', 'partner', 'manager',
+                  'accounting_role', 'cipc_role', 'tax_role', 'financials_role', 'hr_role',
+                  'entity_type', 'year_end',
+                ].map((k) => {
+                  const f = DATAGROWS_FIELDS.find((x) => x.key === k);
+                  return f ? <option key={k} value={k}>{f.header}</option> : null;
+                })}
+              </select>
+              {/* Value input — text/enum for non-staff; hidden when using staff picker */}
+              {field && !showStaffPicker && (
+                field.type === 'enum' && field.enum ? (
+                  <select className="input flex-shrink-0 w-44" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}>
+                    <option value="">— choose —</option>
+                    {field.enum.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="input flex-shrink-0 w-44"
+                    placeholder={`New value for ${field.header}`}
+                    value={bulkValue}
+                    onChange={(e) => setBulkValue(e.target.value)}
+                  />
+                )
+              )}
+              {/* Apply + Clear */}
+              {(!showStaffPicker || bulkValue) && (
+                <button
+                  className="btn btn-primary text-sm shrink-0"
+                  disabled={!bulkValue || bulkApplying}
+                  onClick={() => void bulkUpdateField(bulkField, bulkValue)}
+                >
+                  {bulkApplying ? 'Applying…' : `Apply to ${selectedIds.size}`}
+                </button>
+              )}
+              <button
+                className="btn btn-ghost text-sm shrink-0 text-navy-500"
+                onClick={() => { setSelectedIds(new Set()); setBulkValue(''); }}
+              >
+                Clear
               </button>
+            </div>
+
+            {/* Row 2: staff quick-pick (only for staff role fields) */}
+            {showStaffPicker && (
+              <div className="border-t border-teal-200 pt-3">
+                <p className="text-xs text-teal-700 font-medium mb-2">
+                  Pick a staff member to assign as {field?.header} for {selectedIds.size} client{selectedIds.size !== 1 ? 's' : ''}:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(staffForField.length > 0 ? staffForField : firmStaff).map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setBulkValue(s.name)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                        bulkValue === s.name
+                          ? 'bg-teal text-white border-teal shadow-sm'
+                          : 'bg-white text-navy-700 border-navy-200 hover:border-teal hover:bg-teal-50'
+                      }`}
+                    >
+                      {s.name}
+                      {s.roles.length > 0 && (
+                        <span className={`text-xs ${bulkValue === s.name ? 'text-teal-100' : 'text-navy-400'}`}>
+                          · {s.roles.join(', ')}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  {bulkValue && (
+                    <button
+                      className="btn btn-primary text-sm"
+                      disabled={bulkApplying}
+                      onClick={() => void bulkUpdateField(bulkField, bulkValue)}
+                    >
+                      {bulkApplying ? 'Applying…' : `✓ Assign ${bulkValue} to ${selectedIds.size}`}
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
-            <select
-              className="input flex-shrink-0 w-44"
-              value={bulkField}
-              onChange={(e) => { setBulkField(e.target.value); setBulkValue(''); }}
-            >
-              {[
-                'status', 'accountant', 'partner', 'manager',
-                'accounting_role', 'cipc_role', 'tax_role', 'financials_role', 'hr_role',
-                'entity_type', 'year_end',
-              ].map((k) => {
-                const f = DATAGROWS_FIELDS.find((x) => x.key === k);
-                return f ? <option key={k} value={k}>{f.header}</option> : null;
-              })}
-            </select>
-            {field && (
-              field.type === 'enum' && field.enum ? (
-                <select className="input flex-shrink-0 w-44" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}>
-                  <option value="">— choose —</option>
-                  {field.enum.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  className="input flex-shrink-0 w-44"
-                  placeholder={`New value for ${field.header}`}
-                  value={bulkValue}
-                  onChange={(e) => setBulkValue(e.target.value)}
-                />
-              )
-            )}
-            <button
-              className="btn btn-primary text-sm shrink-0"
-              disabled={!bulkValue || bulkApplying}
-              onClick={() => void bulkUpdateField(bulkField, bulkValue)}
-            >
-              {bulkApplying ? 'Applying…' : `Apply to ${selectedIds.size}`}
-            </button>
-            <button
-              className="btn btn-ghost text-sm shrink-0 text-navy-500"
-              onClick={() => setSelectedIds(new Set())}
-            >
-              Clear
-            </button>
           </div>
         );
       })()}
