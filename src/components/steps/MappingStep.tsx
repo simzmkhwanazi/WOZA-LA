@@ -217,6 +217,29 @@ export function MappingStep({
       appendLog(`${merged.length} final client records`);
       setProgress(88);
 
+      // ── One-man-band auto-fill ───────────────────────────────────────────────
+      // If the firm uploaded an employee list with exactly 1 person, auto-assign
+      // that person to all staff role fields that are still blank.
+      const staffFields = ['partner', 'manager', 'accountant', 'accounting_role', 'cipc_role', 'tax_role'];
+      const employeeRecords = allMapped.filter((r) => r.source === 'employees');
+      const uniqueNames = [
+        ...new Set(
+          employeeRecords
+            .map((r) => String((r.data as Record<string, unknown>).client_name ?? (r.data as Record<string, unknown>).primary_contact ?? '').trim())
+            .filter(Boolean),
+        ),
+      ];
+      if (uniqueNames.length === 1) {
+        const soloName = uniqueNames[0];
+        appendLog(`One-man band detected — auto-assigning "${soloName}" to all staff roles`);
+        for (const rec of merged) {
+          const m = rec as Record<string, unknown>;
+          for (const f of staffFields) {
+            if (!m[f]) m[f] = soloName;
+          }
+        }
+      }
+
       setStatusText('Saving to database…');
       await supabase.from('clusters').delete().eq('session_id', sessionId);
 
