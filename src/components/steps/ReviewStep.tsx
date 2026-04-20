@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DATAGROWS_FIELDS, FIELD_BY_COL, REQUIRED_FIELDS, type FieldDef, type ClientRecord } from '@/lib/schema/datagrows';
+import { SOURCE_LABELS, type SourceType } from '@/lib/schema/sources';
 import { validateRecord } from '@/lib/validator';
 import { humanizeIssue } from '@/lib/validator/humanize';
 
@@ -406,7 +407,9 @@ export function ReviewStep({
                       {String((c.merged as Record<string, unknown>)[f.key] ?? '—')}
                     </td>
                   ))}
-                  <td className="px-3 py-2.5 text-xs text-navy-500 hidden sm:table-cell">{c.sources.join(', ')}</td>
+                  <td className="px-3 py-2.5 text-xs text-navy-500 hidden sm:table-cell">
+                    {c.sources.map((s) => SOURCE_LABELS[s as SourceType] ?? s).join(', ')}
+                  </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 flex-wrap">
                       {errors > 0 && <span className="badge badge-error">{errors} err</span>}
