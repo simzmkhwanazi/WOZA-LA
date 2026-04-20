@@ -64,10 +64,10 @@ function statusColor(status: string): string {
 }
 
 const MAIN_STEPS: { key: MainStep; label: string; icon: string; defaultSub: SubTab }[] = [
-  { key: 'import',    label: 'Import',     icon: '📥', defaultSub: 'upload' },
-  { key: 'clients',   label: 'Clients',    icon: '👥', defaultSub: 'review' },
-  { key: 'dashboard', label: 'Dashboard',  icon: '📊', defaultSub: 'dashboard' },
-  { key: 'export',    label: 'Export',     icon: '📤', defaultSub: 'export' },
+  { key: 'import',    label: 'Import',     icon: '', defaultSub: 'upload' },
+  { key: 'clients',   label: 'Clients',    icon: '', defaultSub: 'review' },
+  { key: 'dashboard', label: 'Dashboard',  icon: '', defaultSub: 'dashboard' },
+  { key: 'export',    label: 'Export',     icon: '', defaultSub: 'export' },
 ];
 
 type ReviewFilter = 'all' | 'ready' | 'errors' | 'warnings' | 'archived' | 'dormant';
@@ -228,7 +228,6 @@ export default function SessionPage() {
                       : 'text-gray-600 border-l-transparent hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <span className="text-base leading-none">{step.icon}</span>
                   <span>{step.label}</span>
                 </button>
               );
