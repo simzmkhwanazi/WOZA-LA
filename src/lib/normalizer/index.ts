@@ -313,7 +313,35 @@ export function normalizeRecord(record: Record<string, unknown>): ClientRecord {
     (out as Record<string, unknown>).year_end = 'February';
   }
 
+  // SA ID → Date of Birth extraction (dd/mm/yyyy)
+  if (out.id_number && !out.date_of_birth) {
+    const dob = extractDobFromSaId(String(out.id_number));
+    if (dob) (out as Record<string, unknown>).date_of_birth = dob;
+  }
+
   return out;
+}
+
+/**
+ * Extract Date of Birth from a South African ID number.
+ * SA ID format: YYMMDD SSSS C A Z (13 digits total).
+ * Returns dd/mm/yyyy string, or null if not a valid SA ID.
+ */
+export function extractDobFromSaId(id: unknown): string | null {
+  const digits = String(id ?? '').replace(/\D+/g, '');
+  if (digits.length !== 13) return null;
+
+  const yy = Number(digits.slice(0, 2));
+  const mm = Number(digits.slice(2, 4));
+  const dd = Number(digits.slice(4, 6));
+
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+
+  // Century cutoff: YY ≤ current 2-digit year → 2000s, else 1900s
+  const currentYY = new Date().getFullYear() % 100;
+  const yyyy = yy <= currentYY ? 2000 + yy : 1900 + yy;
+
+  return `${pad(dd)}/${pad(mm)}/${yyyy}`;
 }
 
 // Re-export canonical registration key for matcher

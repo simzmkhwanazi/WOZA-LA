@@ -82,6 +82,74 @@ export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<Ex
     });
   });
 
+  // ── Tips & Formats sheet: write unique staff names ─────────────────────────
+  // DataGrows builds its dropdown lists for Accountant/Partner/Manager etc.
+  // from the staff columns in the Tips & Formats sheet. Without these names
+  // present, the CLIENT IMPORT dropdowns will show no options and DataGrows
+  // may reject the values on import.
+  const tipsSheet = wb.getWorksheet('Tips & Formats') ?? wb.getWorksheet('Tips and Formats');
+  if (tipsSheet) {
+    const STAFF_FIELD_KEYS = [
+      'accountant', 'partner', 'manager',
+      'accounting_role', 'cipc_role', 'financials_role', 'hr_role', 'tax_role',
+    ] as const;
+
+    // Collect unique names per staff field across all export records
+    const staffByField: Record<string, string[]> = {};
+    for (const key of STAFF_FIELD_KEYS) {
+      const names = [
+        ...new Set(
+          records
+            .map((r) => String((r as Record<string, unknown>)[key] ?? '').trim())
+            .filter(Boolean),
+        ),
+      ];
+      if (names.length > 0) staffByField[key] = names;
+    }
+
+    // Locate header row in Tips & Formats to find the right columns
+    let headerRowNum = 0;
+    tipsSheet.eachRow((row, rowNumber) => {
+      if (headerRowNum) return;
+      row.eachCell((cell) => {
+        const v = String(cell.value ?? '').trim().toLowerCase();
+        if (v === 'accountant') headerRowNum = rowNumber;
+      });
+    });
+
+    if (headerRowNum > 0) {
+      // Map header text → column number
+      const headerRow = tipsSheet.getRow(headerRowNum);
+      const colMap: Record<string, number> = {};
+      headerRow.eachCell((cell, colNum) => {
+        const v = String(cell.value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+        colMap[v] = colNum;
+      });
+
+      // Write names below their column header
+      const HEADER_TO_KEY: Record<string, string> = {
+        accountant: 'accountant',
+        partner: 'partner',
+        manager: 'manager',
+        accounting_role: 'accounting_role',
+        cipc_role: 'cipc_role',
+        financials_role: 'financials_role',
+        hr_role: 'hr_role',
+        tax_role: 'tax_role',
+      };
+
+      for (const [headerKey, fieldKey] of Object.entries(HEADER_TO_KEY)) {
+        const colNum = colMap[headerKey];
+        const names = staffByField[fieldKey];
+        if (!colNum || !names) continue;
+        names.forEach((name, i) => {
+          const cell = tipsSheet.getCell(headerRowNum + 1 + i, colNum);
+          if (!cell.value) cell.value = name; // don't overwrite existing entries
+        });
+      }
+    }
+  }
+
   if (opts.stripInstructions) {
     // Clear row 2 content — but don't delete the row (preserves data validations)
     const instructionsRow = sheet.getRow(2);

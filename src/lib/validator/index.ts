@@ -106,11 +106,14 @@ export function validateRecord(record: ClientRecord): ValidationResult {
   }
 
   // Conditional requirements
+  // id_number is promoted to a blocking error for individuals — DataGrows uses
+  // it to auto-calculate DOB and schedule tasks correctly.
+  const CONDITIONAL_ERROR_FIELDS = new Set(['id_number', 'registration_nr', 'trust_deed_number']);
   for (const field of DATAGROWS_FIELDS) {
     if (field.conditionalRequired && field.conditionalRequired(record as Record<string, unknown>)) {
       if (isEmpty((record as Record<string, unknown>)[field.key])) {
         issues.push({
-          severity: 'warning',
+          severity: CONDITIONAL_ERROR_FIELDS.has(field.key) ? 'error' : 'warning',
           field: field.key,
           message: `${field.header} is required for this entity type`,
         });
