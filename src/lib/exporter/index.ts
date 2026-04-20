@@ -79,6 +79,11 @@ export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<Ex
       const value = (record as Record<string, unknown>)[field.key];
       const cell = sheet.getCell(`${field.col}${rowNum}`);
       cell.value = cellValueFor(value);
+      // Date fields must stay as plain text — if Excel interprets them as date
+      // serials the dd/mm/yyyy format breaks when the file is reopened.
+      if (field.type === 'date' && value) {
+        cell.numFmt = '@'; // '@' = force text, Excel will never reformat it
+      }
     });
   });
 
