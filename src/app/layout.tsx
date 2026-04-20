@@ -56,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* AppShell hides the teal banner and footer on /login and /signup */}
         <AppShell>{children}</AppShell>
-        {user && <AppTour />}
+        {user && <AppTour tourSeen={!!user.user_metadata?.wl_tour_seen} />}
       </body>
     </html>
   );

@@ -280,19 +280,29 @@ function waitForElement(selector: string, timeout = 3000): Promise<boolean> {
   });
 }
 
-export function AppTour() {
+// Tour seen state is stored in Supabase user metadata so it persists across
+// devices, browsers, and URL changes (localStorage is per-origin and gets
+// wiped when users switch between Vercel preview URLs or clear storage).
+export function AppTour({ tourSeen }: { tourSeen: boolean }) {
   const pathname = usePathname();
+
+  const markSeen = useCallback(async () => {
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      await supabase.auth.updateUser({ data: { wl_tour_seen: true } });
+    } catch {
+      // Non-critical — tour will just re-run next session if this fails
+    }
+  }, []);
 
   const runTour = useCallback((
     steps: DriveStep[],
-    storageKey: string,
     requiredSelector?: string,
   ) => {
     if (typeof window === 'undefined') return;
-    if (localStorage.getItem(storageKey)) return;
 
     const start = () => {
-      // Filter out steps whose element doesn't exist in the DOM
       const safeSteps = steps.map((step) => {
         if (step.element && !document.querySelector(step.element as string)) {
           return { ...step, element: undefined };
@@ -312,7 +322,7 @@ export function AppTour() {
         doneBtnText: 'Done ✓',
         progressText: '{{current}} of {{total}}',
         onDestroyStarted: () => {
-          localStorage.setItem(storageKey, '1');
+          void markSeen();
           driverObj.destroy();
         },
         steps: safeSteps,
@@ -326,22 +336,26 @@ export function AppTour() {
     } else {
       setTimeout(start, 600);
     }
-  }, []);
+  }, [markSeen]);
 
   useEffect(() => {
+    if (tourSeen) return;
+
     if (pathname === '/') {
-      runTour(HOME_STEPS, STORAGE_KEYS.home, '[data-tour="btn-new-session"]');
+      runTour(HOME_STEPS, '[data-tour="btn-new-session"]');
     } else if (pathname.startsWith('/sessions/') && !pathname.endsWith('/new')) {
-      runTour(SESSION_STEPS, STORAGE_KEYS.session, '[data-tour="tab-upload"]');
-    } else if (pathname === '/feature-engine') {
-      runTour(FEATURE_ENGINE_STEPS, STORAGE_KEYS.featureEngine, '[data-tour="session-list"]');
+      runTour(SESSION_STEPS, '[data-tour="tab-upload"]');
     }
-  }, [pathname, runTour]);
+  }, [pathname, runTour, tourSeen]);
 
   return null;
 }
 
-// Re-export helper to reset tours from Settings
+// Called from Settings — clears the flag in Supabase metadata
 export function resetAllTours() {
-  Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
+  // Async reset — fire and forget
+  import('@/lib/supabase/client').then(({ createClient }) => {
+    const supabase = createClient();
+    void supabase.auth.updateUser({ data: { wl_tour_seen: false } });
+  });
 }
