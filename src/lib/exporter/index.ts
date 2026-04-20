@@ -82,70 +82,49 @@ export async function exportToDataGrowsTemplate(opts: ExportOptions): Promise<Ex
     });
   });
 
-  // ── Tips & Formats sheet: write unique staff names ─────────────────────────
-  // DataGrows builds its dropdown lists for Accountant/Partner/Manager etc.
-  // from the staff columns in the Tips & Formats sheet. Without these names
-  // present, the CLIENT IMPORT dropdowns will show no options and DataGrows
-  // may reject the values on import.
-  const tipsSheet = wb.getWorksheet('Tips & Formats') ?? wb.getWorksheet('Tips and Formats');
+  // ── Tips & Formats sheet: populate the Accountant dropdown list ────────────
+  // The "TIPS & FORMATS" sheet has a single "Accountant (As per Datagrows)"
+  // column (col 4). DataGrows uses this list as the dropdown source for every
+  // staff-role field (Partner, Manager, Accountant, Accounting Role, etc.) in
+  // the CLIENT IMPORT sheet. All unique staff names — regardless of role —
+  // must appear here for the dropdowns to work.
+  const tipsSheet = wb.getWorksheet('TIPS & FORMATS') ?? wb.getWorksheet('Tips & Formats');
   if (tipsSheet) {
-    const STAFF_FIELD_KEYS = [
+    const STAFF_KEYS = [
       'accountant', 'partner', 'manager',
       'accounting_role', 'cipc_role', 'financials_role', 'hr_role', 'tax_role',
-    ] as const;
+    ];
 
-    // Collect unique names per staff field across all export records
-    const staffByField: Record<string, string[]> = {};
-    for (const key of STAFF_FIELD_KEYS) {
-      const names = [
-        ...new Set(
-          records
-            .map((r) => String((r as Record<string, unknown>)[key] ?? '').trim())
-            .filter(Boolean),
-        ),
-      ];
-      if (names.length > 0) staffByField[key] = names;
-    }
+    // Collect every unique staff name across all roles and all records
+    const allStaffNames = [
+      ...new Set(
+        records.flatMap((r) =>
+          STAFF_KEYS.map((k) => String((r as Record<string, unknown>)[k] ?? '').trim()),
+        ).filter(Boolean),
+      ),
+    ];
 
-    // Locate header row in Tips & Formats to find the right columns
-    let headerRowNum = 0;
-    tipsSheet.eachRow((row, rowNumber) => {
-      if (headerRowNum) return;
-      row.eachCell((cell) => {
-        const v = String(cell.value ?? '').trim().toLowerCase();
-        if (v === 'accountant') headerRowNum = rowNumber;
-      });
-    });
+    if (allStaffNames.length > 0) {
+      // The accountant dropdown column is column 4 in TIPS & FORMATS.
+      // Find the header row first (row 1 by convention), then write names below
+      // any existing entries so we never overwrite content already in the template.
+      const ACCOUNTANT_COL = 4;
+      let nextRow = 2; // row 1 = header; start checking from row 2
+      while (tipsSheet.getCell(nextRow, ACCOUNTANT_COL).value) nextRow++;
 
-    if (headerRowNum > 0) {
-      // Map header text → column number
-      const headerRow = tipsSheet.getRow(headerRowNum);
-      const colMap: Record<string, number> = {};
-      headerRow.eachCell((cell, colNum) => {
-        const v = String(cell.value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
-        colMap[v] = colNum;
-      });
+      // Only add names that aren't already listed
+      const existing = new Set<string>();
+      for (let r = 2; r < nextRow; r++) {
+        const v = String(tipsSheet.getCell(r, ACCOUNTANT_COL).value ?? '').trim();
+        if (v) existing.add(v.toLowerCase());
+      }
 
-      // Write names below their column header
-      const HEADER_TO_KEY: Record<string, string> = {
-        accountant: 'accountant',
-        partner: 'partner',
-        manager: 'manager',
-        accounting_role: 'accounting_role',
-        cipc_role: 'cipc_role',
-        financials_role: 'financials_role',
-        hr_role: 'hr_role',
-        tax_role: 'tax_role',
-      };
-
-      for (const [headerKey, fieldKey] of Object.entries(HEADER_TO_KEY)) {
-        const colNum = colMap[headerKey];
-        const names = staffByField[fieldKey];
-        if (!colNum || !names) continue;
-        names.forEach((name, i) => {
-          const cell = tipsSheet.getCell(headerRowNum + 1 + i, colNum);
-          if (!cell.value) cell.value = name; // don't overwrite existing entries
-        });
+      for (const name of allStaffNames) {
+        if (!existing.has(name.toLowerCase())) {
+          tipsSheet.getCell(nextRow, ACCOUNTANT_COL).value = name;
+          existing.add(name.toLowerCase());
+          nextRow++;
+        }
       }
     }
   }
