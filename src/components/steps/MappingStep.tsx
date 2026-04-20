@@ -368,8 +368,8 @@ export function MappingStep({
   // ── Render ────────────────────────────────────────────────────────────────
 
   const progressBarColor =
-    phase === 'error' ? 'bg-red-500' :
-    phase === 'done'  ? 'bg-green-500' :
+    phase === 'error'                              ? 'bg-red-500' :
+    phase === 'done' || phase === 'already_done'   ? 'bg-green-500' :
     'bg-brand';
 
   return (
@@ -401,10 +401,12 @@ export function MappingStep({
         <div className="w-full bg-navy-100 rounded-full h-2 mb-2">
           <div
             className={`h-2 rounded-full transition-all duration-500 ${progressBarColor}`}
-            style={{ width: `${progress}%` }}
+            style={{ width: `${phase === 'already_done' ? 100 : progress}%` }}
           />
         </div>
-        <p className="text-xs text-navy-500">{statusText}</p>
+        <p className={`text-xs ${phase === 'already_done' || phase === 'done' ? 'text-green-600 font-medium' : 'text-navy-500'}`}>
+          {statusText}
+        </p>
 
         {phase === 'error' && errorMsg && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
