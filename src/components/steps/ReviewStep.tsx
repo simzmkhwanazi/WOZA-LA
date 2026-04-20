@@ -335,17 +335,17 @@ export function ReviewStep({
       <div className="-mx-4 sm:mx-0">
         <div className="flex overflow-x-auto gap-2 px-4 sm:px-0 pb-1 scrollbar-none items-center">
           {([
-            ['all',      `All (${counts.all})`],
-            ['ready',    `Ready (${counts.ready})`],
-            ['errors',   `Errors (${counts.errors})`],
-            ['warnings', `Warnings (${counts.warnings})`],
-            ['dormant',  `Dormant (${counts.dormant})`],
-            ['archived', `Archived (${counts.archived})`],
-          ] as [Filter, string][]).map(([k, label]) => (
+            ['all',      `All (${counts.all})`,           'bg-teal-600 text-white border-teal-600',         'border border-gray-200 text-navy-600 hover:border-teal-400'],
+            ['ready',    `Ready (${counts.ready})`,       'bg-emerald-600 text-white border-emerald-600',   'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'],
+            ['errors',   `Errors (${counts.errors})`,     'bg-rose-600 text-white border-rose-600',         'border border-rose-200 text-rose-600 hover:bg-rose-50'],
+            ['warnings', `Warnings (${counts.warnings})`, 'bg-amber-500 text-white border-amber-500',       'border border-amber-200 text-amber-600 hover:bg-amber-50'],
+            ['dormant',  `Dormant (${counts.dormant})`,   'bg-slate-500 text-white border-slate-500',       'border border-slate-200 text-slate-500 hover:bg-slate-50'],
+            ['archived', `Archived (${counts.archived})`, 'bg-gray-500 text-white border-gray-500',         'border border-gray-200 text-gray-500 hover:bg-gray-50'],
+          ] as [Filter, string, string, string][]).map(([k, label, activeClass, inactiveClass]) => (
             <button
               key={k}
               onClick={() => setFilter(k)}
-              className={`btn flex-shrink-0 ${filter === k ? 'btn-primary' : 'btn-secondary'}`}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold flex-shrink-0 transition-colors ${filter === k ? activeClass : inactiveClass}`}
             >
               {label}
             </button>
