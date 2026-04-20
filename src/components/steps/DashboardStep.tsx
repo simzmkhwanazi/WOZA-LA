@@ -82,7 +82,7 @@ interface Contact {
   relationship: string;
 }
 
-// ── Client profile card ───────────────────────────────────────────────────────
+// ── Client profile card (sticky freeze-pane panel) ───────────────────────────
 
 function ClientProfileCard({
   cluster,
@@ -96,59 +96,73 @@ function ClientProfileCard({
   const staffFields = DATAGROWS_FIELDS.filter((f) => f.type === 'staff');
 
   return (
-    <div className="card p-5 border-2 border-teal-200">
-      <div className="flex items-start justify-between mb-4">
+    <div className="bg-white border-2 border-teal-300 rounded-xl shadow-md p-4">
+      {/* ── Header row ── */}
+      <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="text-base font-semibold text-navy-800">{String(m.client_name ?? '—')}</h3>
-          <p className="text-xs text-navy-500 mt-0.5">
-            {String(m.entity_type ?? '—')} · {String(m.status ?? '—')} · Year end: {String(m.year_end ?? '—')}
+          <h3 className="text-base font-semibold text-navy-800 leading-tight">
+            {String(m.client_name ?? '—')}
+          </h3>
+          <p className="text-xs text-navy-400 mt-0.5">
+            {String(m.entity_type ?? '—')}
+            {m.status ? ` · ${String(m.status)}` : ''}
+            {m.year_end ? ` · Year end: ${String(m.year_end)}` : ''}
           </p>
         </div>
-        <button onClick={onClose} className="text-navy-400 hover:text-navy-700 text-xl leading-none">×</button>
+        <button
+          onClick={onClose}
+          className="text-navy-300 hover:text-navy-600 text-xl leading-none ml-4 flex-shrink-0"
+          aria-label="Close"
+        >×</button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        {/* Identity */}
-        <div>
-          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider mb-1.5">Registration</p>
-          <p><span className="text-navy-400">Reg Nr:</span> {String(m.registration_nr ?? '—')}</p>
-          <p><span className="text-navy-400">Tax Nr:</span> {String(m.tax_nr ?? '—')}</p>
-          <p><span className="text-navy-400">VAT Nr:</span> {String(m.vat_nr ?? '—')}</p>
+      {/* ── Detail grid — 4 columns on wide, 2 on narrow ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+        {/* Registration */}
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wider">Registration</p>
+          <p className="text-xs"><span className="text-navy-400">Reg:</span> {String(m.registration_nr ?? '—')}</p>
+          <p className="text-xs"><span className="text-navy-400">Tax:</span> {String(m.tax_nr ?? '—')}</p>
+          <p className="text-xs"><span className="text-navy-400">VAT:</span> {String(m.vat_nr ?? '—')}</p>
         </div>
 
         {/* Contact */}
-        <div>
-          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider mb-1.5">Contact</p>
-          <p><span className="text-navy-400">Contact:</span> {String(m.primary_contact ?? '—')}</p>
-          <p><span className="text-navy-400">Phone:</span> {String(m.contact_nr ?? '—')}</p>
-          <p className="truncate"><span className="text-navy-400">Email:</span> {String(m.contact_email ?? '—')}</p>
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wider">Contact</p>
+          <p className="text-xs truncate"><span className="text-navy-400">Name:</span> {String(m.primary_contact ?? '—')}</p>
+          <p className="text-xs"><span className="text-navy-400">Phone:</span> {String(m.contact_nr ?? '—')}</p>
+          <p className="text-xs truncate"><span className="text-navy-400">Email:</span> {String(m.contact_email ?? '—')}</p>
         </div>
 
         {/* Services */}
-        <div className="col-span-2">
-          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider mb-1.5">Services</p>
+        <div>
+          <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wider mb-1">Services</p>
           {services.length === 0
-            ? <p className="text-navy-400 text-xs">No services ticked</p>
-            : <div className="flex flex-wrap gap-1">{services.map((s) => (
-                <span key={s.key} className="badge badge-ok text-xs">{s.label}</span>
-              ))}</div>
+            ? <p className="text-xs text-navy-400">None ticked</p>
+            : <div className="flex flex-wrap gap-1">
+                {services.map((s) => (
+                  <span key={s.key} className="badge badge-ok text-[10px] px-1.5 py-0.5">{s.label}</span>
+                ))}
+              </div>
           }
         </div>
 
-        {/* Staff */}
-        <div className="col-span-2">
-          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider mb-1.5">Staff Assignments</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-            {staffFields.filter((f) => m[f.key]).map((f) => (
-              <p key={f.key}><span className="text-navy-400">{f.header}:</span> {String(m[f.key])}</p>
+        {/* Staff & Sources */}
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wider">Staff</p>
+          <div className="space-y-0.5">
+            {staffFields.filter((f) => m[f.key]).slice(0, 4).map((f) => (
+              <p key={f.key} className="text-xs truncate">
+                <span className="text-navy-400">{f.header}:</span> {String(m[f.key])}
+              </p>
             ))}
+            {staffFields.filter((f) => m[f.key]).length === 0 && (
+              <p className="text-xs text-navy-400">—</p>
+            )}
           </div>
-        </div>
-
-        {/* Sources */}
-        <div className="col-span-2">
-          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider mb-1">Sources</p>
-          <p className="text-xs text-navy-500">{cluster.sources.join(', ') || '—'}</p>
+          <p className="text-[10px] text-navy-400 mt-1">
+            Sources: {cluster.sources.join(', ') || '—'}
+          </p>
         </div>
       </div>
     </div>
@@ -221,6 +235,13 @@ function ClientsTab({ clusters }: { clusters: ClusterRow[] }) {
 
   return (
     <div className="space-y-5">
+      {/* ── Sticky client detail panel ── */}
+      {selected && (
+        <div className="sticky top-0 z-20">
+          <ClientProfileCard cluster={selected} onClose={() => setSelectedId(null)} />
+        </div>
+      )}
+
       {/* Charts grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Entity type donut */}
@@ -290,11 +311,6 @@ function ClientsTab({ clusters }: { clusters: ClusterRow[] }) {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* Selected client profile */}
-      {selected && (
-        <ClientProfileCard cluster={selected} onClose={() => setSelectedId(null)} />
-      )}
 
       {/* Search + table */}
       <div className="card overflow-hidden">
