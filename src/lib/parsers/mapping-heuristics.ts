@@ -11,11 +11,14 @@ import { DATAGROWS_FIELDS, type FieldDef } from '../schema/datagrows';
 /** Synonyms for common canonical field keys across the 5 source types. */
 const SYNONYMS: Record<string, string[]> = {
   client_name: [
-    'client', 'client name', 'customer', 'customer name', 'company',
-    'company name', 'name', 'entity name', 'legal name', 'account name',
+    'client name', 'customer name', 'company name', 'entity name', 'legal name',
+    'account name', 'enterprise name', 'business name', 'registered name',
+    'client', 'customer',
   ],
   entity_type: [
-    'entity type', 'type', 'company type', 'legal form', 'entity', 'category',
+    'entity type', 'company type', 'legal form', 'legal entity type',
+    'enterprise type', 'enterprise form', 'company form', 'entity form',
+    'type', 'entity', 'category',
   ],
   registration_nr: [
     'registration number', 'reg number', 'reg nr', 'registration nr',
@@ -39,7 +42,7 @@ const SYNONYMS: Record<string, string[]> = {
     'id number', 'id', 'sa id', 'id/passport', 'passport number', 'identity number',
   ],
   trust_deed_number: [
-    'trust deed', 'trust deed number', 'deed number', 'it reference',
+    'trust deed', 'trust deed number', 'deed number',
   ],
   paye_nr: ['paye number', 'paye nr', 'paye', 'paye reference'],
   vat_nr: ['vat number', 'vat nr', 'vat', 'vat reference', 'vat registration'],
@@ -53,7 +56,12 @@ const SYNONYMS: Record<string, string[]> = {
   physical_province: ['province', 'state', 'region'],
   physical_postal: ['postal code', 'zip', 'zip code', 'post code'],
   trading_name: ['trading as', 'trading name', 't/a', 'dba'],
-  status: ['status', 'client status', 'active', 'state', 'account status', 'account state'],
+  status: [
+    'status', 'client status', 'account status', 'account state',
+    'enterprise status', 'company status', 'business status', 'entity status',
+    'registration status', 'cipc status', 'state', 'active',
+    'deregistration status', 'deregistration', 'in business', 'in liquidation',
+  ],
   accounting_program: ['accounting program', 'software', 'system', 'accounting software', 'bookkeeping software'],
   bank_details: ['bank details', 'bank', 'account number', 'bank account'],
   comment: ['comment', 'comments', 'notes', 'note', 'remarks', 'remark', 'memo', 'internal notes', 'client notes', 'description', 'department', 'dept', 'division', 'team'],
@@ -77,7 +85,12 @@ const SYNONYMS: Record<string, string[]> = {
   postal_city: ['postal city', 'postal town'],
   postal_province: ['postal province', 'postal state'],
   postal_postal: ['postal code', 'postal zip'],
-  tax_nr: ['tax number', 'tax nr', 'income tax number', 'it number', 'it reference', 'sars tax number', 'taxpayer number'],
+  tax_nr: [
+    'tax number', 'tax nr', 'income tax number', 'it number',
+    'it ref', 'it ref number', 'income tax ref', 'income tax reference',
+    'sars tax number', 'taxpayer number', 'taxpayer ref', 'tax reference number',
+    'tax reference', 'sars income tax', 'sars number', 'sars ref',
+  ],
   pbo_number: ['pbo number', 'pbo', 'public benefit organisation', 'npo number'],
   customs_nr: ['customs number', 'customs nr', 'customs', 'tariff number'],
 };
@@ -90,6 +103,9 @@ function normalize(s: string): string {
  * Suggest a canonical field key for a given detected column header.
  * Returns undefined if no reasonable match.
  */
+// Headers containing these patterns must never map to client_name regardless of substring matches
+const CLIENT_NAME_BLOCKLIST = /status|deregistrat|inbusiness|inliquidat|dissolved|struckoff|deregist/;
+
 export function suggestFieldKey(header: string): string | undefined {
   const norm = normalize(header);
   if (!norm) return undefined;
@@ -99,13 +115,14 @@ export function suggestFieldKey(header: string): string | undefined {
     if (normalize(field.header) === norm) return field.key;
   }
 
-  // Pass 2: synonym lookup
+  // Pass 2: synonym lookup (exact normalized match)
   for (const [key, synonyms] of Object.entries(SYNONYMS)) {
     if (synonyms.some((syn) => normalize(syn) === norm)) return key;
   }
 
-  // Pass 3: substring match against synonyms (looser)
+  // Pass 3: substring match (looser) — but block status-like headers from matching client_name
   for (const [key, synonyms] of Object.entries(SYNONYMS)) {
+    if (key === 'client_name' && CLIENT_NAME_BLOCKLIST.test(norm)) continue;
     if (synonyms.some((syn) => norm.includes(normalize(syn)) || normalize(syn).includes(norm))) {
       return key;
     }

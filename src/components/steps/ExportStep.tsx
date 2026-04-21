@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { validateRecord } from '@/lib/validator';
 import type { ClientRecord } from '@/lib/schema/datagrows';
-import { bestNameSimilarity } from '@/lib/matcher';
 
 interface ClusterRow {
   id: string;
@@ -22,6 +21,7 @@ interface Summary {
   archived: number;
   dormant: number;
 }
+
 
 interface GeneratedDocument {
   id: string;
@@ -55,10 +55,9 @@ export function ExportStep({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
-  const [suspectedDuplicates, setSuspectedDuplicates] = useState<
-    { aName: string; bName: string; score: number }[]
-  >([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [regeneratingDocId, setRegeneratingDocId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,26 +85,6 @@ export function ExportStep({
     }
 
     setSummary({ total: rows.length, readyToExport, withErrors, withWarnings, archived, dormant });
-
-    // Export-time duplicate scan — pairwise soft check on all non-archived records
-    const active = rows.filter((r) => !r.archived);
-    const pairs: { aName: string; bName: string; score: number }[] = [];
-    for (let i = 0; i < active.length; i++) {
-      for (let j = i + 1; j < active.length; j++) {
-        const score = bestNameSimilarity(active[i].merged, active[j].merged);
-        if (score >= 0.80) {
-          pairs.push({
-            aName: String(active[i].merged.client_name ?? '—'),
-            bName: String(active[j].merged.client_name ?? '—'),
-            score,
-          });
-        }
-      }
-    }
-    // Sort highest score first, cap at 10 to keep UI clean
-    pairs.sort((a, b) => b.score - a.score);
-    setSuspectedDuplicates(pairs.slice(0, 10));
-
     setLoading(false);
   }, [sessionId, supabase]);
 
@@ -126,36 +105,56 @@ export function ExportStep({
 
   useEffect(() => { load(); loadDocuments(); }, [load, loadDocuments]);
 
+  async function deleteDocument(doc: GeneratedDocument) {
+    setDeletingDocId(doc.id);
+    await supabase.from('generated_documents').delete().eq('id', doc.id);
+    setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+    setDeletingDocId(null);
+  }
+
+  async function runExport(docType: string, onDone?: () => void) {
+    const res = await fetch(`/api/export/${sessionId}?type=${docType}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? `Export failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disposition = res.headers.get('Content-Disposition') ?? '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const safe = firmName.replace(/[^a-z0-9_\-]/gi, '_').slice(0, 60) || 'firm';
+    a.download = match?.[1] ?? `${safe}_datagrows_import.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    onDone?.();
+    await loadDocuments();
+  }
+
   async function generate() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/export/${sessionId}?type=datagrows`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error ?? `Export failed (${res.status})`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      // Use filename from Content-Disposition header if available
-      const disposition = res.headers.get('Content-Disposition') ?? '';
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      const safe = firmName.replace(/[^a-z0-9_\-]/gi, '_').slice(0, 60) || 'firm';
-      a.download = match?.[1] ?? `${safe}_datagrows_import.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      onExportComplete?.();
-
-      // Refresh document history
-      await loadDocuments();
+      await runExport('datagrows', onExportComplete);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function regenerateDocument(doc: GeneratedDocument) {
+    setRegeneratingDocId(doc.id);
+    setError(null);
+    try {
+      await runExport(doc.document_type);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Regeneration failed');
+    } finally {
+      setRegeneratingDocId(null);
     }
   }
 
@@ -191,40 +190,6 @@ export function ExportStep({
           </div>
         )}
       </div>
-
-      {/* ── Suspected duplicates warning ─────────────────────────────────── */}
-      {suspectedDuplicates.length > 0 && (
-        <div className="card p-4 sm:p-5 border-l-4 border-l-amber-400 bg-amber-50">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <h3 className="text-sm font-semibold text-amber-900">
-                ⚠ {suspectedDuplicates.length} possible duplicate{suspectedDuplicates.length !== 1 ? 's' : ''} detected
-              </h3>
-              <p className="text-xs text-amber-700 mt-0.5">
-                These records have very similar names. Review before exporting to avoid duplicates in DataGrows.
-              </p>
-            </div>
-            {onNavigateToReview && (
-              <button
-                onClick={() => onNavigateToReview('all')}
-                className="text-xs text-amber-800 underline hover:text-amber-900 shrink-0"
-              >
-                Go to Review →
-              </button>
-            )}
-          </div>
-          <ul className="space-y-1.5">
-            {suspectedDuplicates.map((p, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs text-amber-800">
-                <span className="font-medium shrink-0">{Math.round(p.score * 100)}%</span>
-                <span className="truncate">{p.aName}</span>
-                <span className="text-amber-400 shrink-0">↔</span>
-                <span className="truncate">{p.bName}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {/* ── Download ─────────────────────────────────────────────────────── */}
       <div className="card p-4 sm:p-6">
@@ -264,6 +229,7 @@ export function ExportStep({
                   <th className="px-2 pb-2 hidden sm:table-cell">By</th>
                   <th className="px-2 pb-2">Date</th>
                   <th className="px-2 pb-2">Download</th>
+                  <th className="px-2 pb-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -305,6 +271,32 @@ export function ExportStep({
                       ) : (
                         <span className="text-xs text-navy-300">—</span>
                       )}
+                    </td>
+                    <td className="px-2 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => void regenerateDocument(doc)}
+                          disabled={!!regeneratingDocId || generating}
+                          className="text-xs text-teal-600 hover:text-teal-800 font-medium disabled:opacity-40 whitespace-nowrap"
+                          title="Re-run export and download a new version"
+                        >
+                          {regeneratingDocId === doc.id ? (
+                            <span className="flex items-center gap-1">
+                              <span className="inline-block w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                              Generating…
+                            </span>
+                          ) : 'Regenerate'}
+                        </button>
+                        <span className="text-gray-200">|</span>
+                        <button
+                          onClick={() => void deleteDocument(doc)}
+                          disabled={deletingDocId === doc.id}
+                          className="text-xs text-rose-500 hover:text-rose-700 font-medium disabled:opacity-40"
+                          title="Remove from history"
+                        >
+                          {deletingDocId === doc.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

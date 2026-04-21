@@ -91,8 +91,19 @@ function validateField(field: FieldDef, value: unknown): Issue[] {
   return issues;
 }
 
+const STATUS_NAME_PATTERN = /^(deregistration|in business|in liquidation|provisionally deregistered|finally deregistered|dissolved|struck off|under investigation|active|dormant|in process)/i;
+
 export function validateRecord(record: ClientRecord): ValidationResult {
   const issues: Issue[] = [];
+
+  // Detect status values that were incorrectly mapped to client_name
+  if (!isEmpty(record.client_name) && STATUS_NAME_PATTERN.test(String(record.client_name).trim())) {
+    issues.push({
+      severity: 'error',
+      field: 'client_name',
+      message: `"${record.client_name}" looks like a status value, not a client name — please correct it`,
+    });
+  }
 
   // Hard-required
   const isSolePropOrIndividual =
