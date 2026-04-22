@@ -103,11 +103,11 @@ create policy "clusters_member_access" on clusters
     )
   );
 
--- ── staff (firm_staff / firm_employees) ───────────────────────────────────────
+-- ── firm_staff ────────────────────────────────────────────────────────────────
 
-drop policy if exists "auth_all_staff" on staff;
+drop policy if exists "auth_all_staff" on firm_staff;
 
-create policy "staff_member_access" on staff
+create policy "firm_staff_member_access" on firm_staff
   for all to authenticated
   using (
     firm_id in (select firm_id from firm_members where user_id = auth.uid())
@@ -137,43 +137,4 @@ create policy "logs_member_access" on feature_engine_logs
     )
   );
 
--- ── Storage bucket: scope to sessions the user belongs to ────────────────────
--- Storage paths are: uploads/{sessionId}/{filename}
--- We extract the sessionId from the object name and check membership.
-
-drop policy if exists "auth_upload_files"  on storage.objects;
-drop policy if exists "auth_read_files"    on storage.objects;
-drop policy if exists "auth_delete_files"  on storage.objects;
-
-create policy "upload_files_own_session" on storage.objects
-  for insert to authenticated
-  with check (
-    bucket_id = 'uploads'
-    and (split_part(name, '/', 1))::uuid in (
-      select s.id from sessions s
-      join firm_members fm on fm.firm_id = s.firm_id
-      where fm.user_id = auth.uid()
-    )
-  );
-
-create policy "read_files_own_session" on storage.objects
-  for select to authenticated
-  using (
-    bucket_id = 'uploads'
-    and (split_part(name, '/', 1))::uuid in (
-      select s.id from sessions s
-      join firm_members fm on fm.firm_id = s.firm_id
-      where fm.user_id = auth.uid()
-    )
-  );
-
-create policy "delete_files_own_session" on storage.objects
-  for delete to authenticated
-  using (
-    bucket_id = 'uploads'
-    and (split_part(name, '/', 1))::uuid in (
-      select s.id from sessions s
-      join firm_members fm on fm.firm_id = s.firm_id
-      where fm.user_id = auth.uid()
-    )
-  );
+-- Storage bucket policies are in fix_storage_policies.sql (run separately to avoid lock contention)

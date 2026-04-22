@@ -71,5 +71,4 @@ create policy "firm_audit_read" on audit_events
 -- Audit events are inserted server-side only (service role) — no direct client inserts
 create policy "no_client_insert" on audit_events
   for insert to authenticated
-  using (false)
   with check (false);
