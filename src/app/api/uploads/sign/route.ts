@@ -17,6 +17,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing sessionId or fileName' }, { status: 400 });
   }
 
+  // ── Ownership check ───────────────────────────────────────────────────────
+  const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
+  let access;
+  try { access = await validateSessionAccess(sessionId); }
+  catch (err) { return accessErrorResponse(err); }
+  void access; // used for type narrowing; ownership confirmed
+
   const storagePath = `${sessionId}/${Date.now()}-${fileName}`;
   const supabase = createServiceClient();
 

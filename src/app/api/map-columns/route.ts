@@ -38,9 +38,16 @@ export async function POST(req: NextRequest) {
     headers?: string[];
   };
 
-  const { headers } = body;
+  const { sessionId, headers } = body;
   if (!Array.isArray(headers) || headers.length === 0) {
     return NextResponse.json({ error: 'headers array is required' }, { status: 400 });
+  }
+
+  // ── Ownership check (only if sessionId provided) ──────────────────────────
+  if (sessionId) {
+    const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
+    try { await validateSessionAccess(sessionId); }
+    catch (err) { return accessErrorResponse(err); }
   }
 
   // Step 1 — deterministic heuristics

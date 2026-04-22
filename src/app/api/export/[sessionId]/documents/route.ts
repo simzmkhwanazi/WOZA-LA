@@ -36,10 +36,18 @@ interface DocumentRow {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ sessionId: string }> },
 ) {
   const { sessionId } = await ctx.params;
+
+  const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
+  const { logAuditEvent } = await import('@/lib/auth/audit');
+  let access;
+  try { access = await validateSessionAccess(sessionId); }
+  catch (err) { return accessErrorResponse(err); }
+  void logAuditEvent({ userId: access.userId, firmId: access.firmId, action: 'view_session', resourceType: 'document', resourceId: sessionId, request: req });
+
   const supabase = createServiceClient();
 
   const { data, error } = await supabase

@@ -79,6 +79,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
   }
 
+  // ── Ownership check ───────────────────────────────────────────────────────
+  const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
+  const { logAuditEvent } = await import('@/lib/auth/audit');
+  let access;
+  try { access = await validateSessionAccess(sessionId); }
+  catch (err) { return accessErrorResponse(err); }
+  void logAuditEvent({ userId: access.userId, firmId: access.firmId, action: 'auto_fix', resourceType: 'session', resourceId: sessionId, request: req });
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

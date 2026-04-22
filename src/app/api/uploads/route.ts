@@ -32,6 +32,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  // ── Ownership check ───────────────────────────────────────────────────────
+  const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
+  const { logAuditEvent } = await import('@/lib/auth/audit');
+  let access;
+  try { access = await validateSessionAccess(sessionId); }
+  catch (err) { return accessErrorResponse(err); }
+  void logAuditEvent({ userId: access.userId, firmId: access.firmId, action: 'upload', resourceType: 'upload', resourceId: sessionId, detail: { fileName }, request: req });
+
   // Normalize the source type before any DB insert
   let normalized: Awaited<ReturnType<typeof normalizeSourceType>>;
   try {
