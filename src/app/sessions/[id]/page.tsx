@@ -321,7 +321,7 @@ export default function SessionPage() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-6 py-6">
-            {subTab === 'upload' && <UploadStep sessionId={sessionId} onProceed={() => goToTab('mapping')} onViewClients={() => goToTab('mapping')} />}
+            {subTab === 'upload' && <UploadStep sessionId={sessionId} onProceed={() => goToTab('mapping')} onViewClients={() => goToTab(session?.status === 'reviewing' || session?.status === 'exported' ? 'all_clients' : 'mapping')} />}
             {subTab === 'mapping' && (
               <MappingStep
                 sessionId={sessionId}
