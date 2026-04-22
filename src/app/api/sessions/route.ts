@@ -45,15 +45,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Add the creating user as an admin member of this firm.
-  // Without this, the user would be locked out of their own session
-  // once tenant-filtered RLS is applied.
-  if (user?.id) {
-    await supabase
-      .from('firm_members')
-      .insert({ firm_id: firm.id, user_id: user.id, role: 'admin' })
-      .throwOnError();
-  }
 
   const { data: session, error: sessErr } = await supabase
     .from('sessions')
@@ -71,12 +62,6 @@ export async function POST(req: NextRequest) {
       { error: sessErr?.message ?? 'Failed to create session' },
       { status: 500 },
     );
-  }
-
-  // Log the session creation
-  const { logAuditEvent } = await import('@/lib/auth/audit');
-  if (user?.id) {
-    void logAuditEvent({ userId: user.id, firmId: firm.id, action: 'view_session', resourceType: 'session', resourceId: session.id, request: req });
   }
 
   return NextResponse.json({ sessionId: session.id });

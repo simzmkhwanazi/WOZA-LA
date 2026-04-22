@@ -96,17 +96,6 @@ export async function GET(
 ) {
   const { sessionId } = await ctx.params;
 
-  // ── Ownership check ───────────────────────────────────────────────────────
-  const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
-  const { logAuditEvent } = await import('@/lib/auth/audit');
-  let access;
-  try {
-    access = await validateSessionAccess(sessionId);
-  } catch (err) {
-    return accessErrorResponse(err);
-  }
-  void logAuditEvent({ userId: access.userId, firmId: access.firmId, action: 'export', resourceType: 'session', resourceId: sessionId, request: req });
-
   const url = new URL(req.url);
   const type = (url.searchParams.get('type') ?? 'datagrows') as ExportType;
 

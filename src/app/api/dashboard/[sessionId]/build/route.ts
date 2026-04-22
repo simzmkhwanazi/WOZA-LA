@@ -294,14 +294,6 @@ export async function POST(
 ) {
   const { sessionId } = await ctx.params;
 
-  // ── Ownership check ───────────────────────────────────────────────────────
-  const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
-  const { logAuditEvent } = await import('@/lib/auth/audit');
-  let access;
-  try { access = await validateSessionAccess(sessionId); }
-  catch (err) { return accessErrorResponse(err); }
-  void logAuditEvent({ userId: access.userId, firmId: access.firmId, action: 'run_pipeline', resourceType: 'session', resourceId: sessionId, request: req });
-
   const supabase = createServiceClient();
 
   const result = {

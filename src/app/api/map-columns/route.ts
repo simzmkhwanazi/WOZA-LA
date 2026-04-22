@@ -43,12 +43,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'headers array is required' }, { status: 400 });
   }
 
-  // ── Ownership check (only if sessionId provided) ──────────────────────────
-  if (sessionId) {
-    const { validateSessionAccess, accessErrorResponse } = await import('@/lib/auth/validate-session-access');
-    try { await validateSessionAccess(sessionId); }
-    catch (err) { return accessErrorResponse(err); }
-  }
 
   // Step 1 — deterministic heuristics
   const heuristicMapping = initialMapping(headers);
